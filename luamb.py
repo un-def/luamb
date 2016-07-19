@@ -51,38 +51,50 @@ class CMD(object):
         return '\n'.join(help_list)
 
 
+class LuambException(Exception):
+
+    pass
+
+
 class Luamb(object):
 
     TYPE_RIO = 1
     TYPE_JIT = 2
     TYPE_ALL = TYPE_RIO | TYPE_JIT
 
+    implementations = {
+        TYPE_RIO: 'PUC-Rio Lua',
+        TYPE_JIT: 'LuaJIT',
+    }
+
     re_lua = re.compile('Lua(?:JIT)? [0-9.]+')
     re_rocks = re.compile('LuaRocks [0-9.]+')
-    re_ver = re.compile('(?P<prefix>(?:lua)?(?P<jit>jit)?)(?P<version>.+)')
-
-    usage = "luamb COMMAND [ARGS]"
+    re_lua_v = re.compile('(?P<prefix>(?:lua)?(?P<jit>jit)?)(?P<version>.+)')
+    re_rocks_s = re.compile('(?:lua)?(?:rocks)?(.+)')
+    re_env_name = re.compile('^[^/\*?]+$')
 
     cmd = CMD()
 
-    def __init__(self, env_dir, lua_default=None, hererocks_module=None):
+    def __init__(self, env_dir, lua_default=None, luarocks_default=None,
+                 hererocks_module=None):
         self.env_dir = env_dir
         self.lua_default = lua_default
+        self.luarocks_default = luarocks_default
         self.hererocks_module = hererocks_module or import_module('hererocks')
         self.supported_versions = {
-            'PUC-Rio Lua': self._get_supported_versions(
+            self.TYPE_RIO: self._get_supported_versions(
                 self.hererocks_module.RioLua),
-            'LuaJIT': self._get_supported_versions(
+            self.TYPE_JIT: self._get_supported_versions(
                 self.hererocks_module.LuaJIT),
-            'LuaRocks': self._get_supported_versions(
+            'rocks': self._get_supported_versions(
                 self.hererocks_module.LuaRocks),
         }
 
-    def run(self, argv):
+    def run(self, argv=None):
+        if not argv:
+            argv = sys.argv[1:]
         parser = argparse.ArgumentParser(
             prog='luamb',
-            description="luamb - Lua virtual environment",
-            usage=self.usage,
             add_help=False,
         )
         parser.add_argument(
@@ -94,17 +106,17 @@ class Luamb(object):
             '-h', '--help',
             action='store_true',
         )
-        args = parser.parse_args(argv[1:2])
-        self.print_usage = parser.print_usage
+        args = parser.parse_args(argv[:1])
+        self._show_main_usage = parser.print_usage
         if not args.command or args.help:
-            self.show_help()
+            self._show_main_help()
             return
         method = self.cmd.resolve(args.command)
         if not method:
             print("command '{}' not found\n"
                   "try 'luamb --help'".format(args.command))
         else:
-            method(self, argv[2:])
+            method(self, argv[1:])
 
     @cmd.add('on', 'enable')
     def cmd_on(self, argv):
@@ -120,6 +132,84 @@ class Luamb(object):
     def cmd_mk(self, argv):
         """create new environment
         """
+        parser = argparse.ArgumentParser(
+            prog='luamb mk',
+        )
+        parser.add_argument(
+            'env_name',
+            help="environment name (used as directory name)"
+        )
+        parser.add_argument(
+            '-l', '--lua',
+            help="version of PUC-Rio Lua",
+        )
+        parser.add_argument(
+            '-j', '--luajit',
+            help="version of LuaJIT",
+        )
+        parser.add_argument(
+            '-r', '--luarocks',
+            help="version of LuaRocks",
+        )
+        parser.add_argument(
+            '-n', '--no-luarocks',
+            action='store_true',
+            help="don't install LuaRocks (if default version specified via "
+                 "environment variable)",
+        )
+        args = parser.parse_args(argv)
+
+        env_name = args.env_name
+        if not self.re_env_name.match(env_name):
+            raise LuambException("invalid env name: '{}'".format(env_name))
+
+        if args.lua and args.luajit:
+            raise LuambException("can't install both PUC-Rio Lua and LuaJIT")
+
+        if args.lua or args.luajit:
+            lua_type, lua_version = self._normalize_lua_version(
+                args.lua or args.luajit,
+                self.TYPE_RIO if args.lua else self.TYPE_JIT
+            )
+        else:
+            if not self.lua_default:
+                raise LuambException(
+                    "specify Lua version with --lua/--luajit argument "
+                    "or set default version via environment variable"
+                )
+
+            try:
+                lua_type, lua_version = self._normalize_lua_version(
+                    self.lua_default)
+            except LuambException as exc:
+                raise LuambException(
+                    "Error parsing default Lua version "
+                    "environment variable: {}".format(exc)
+                )
+
+        if args.luarocks:
+            rocks_version = self._normalize_rocks_version(args.luarocks)
+        elif not args.no_luarocks and self.luarocks_default:
+            try:
+                rocks_version = self._normalize_rocks_version(
+                    self.luarocks_default)
+            except LuambException as exc:
+                raise LuambException(
+                    "Error parsing default LuaRocks version "
+                    "environment variable: {}".format(exc)
+                )
+        else:
+            rocks_version = None
+
+        hererocks_args = [
+            'hererocks',
+            os.path.join(self.env_dir, env_name),
+            '--lua' if lua_type == self.TYPE_RIO else '--luajit',
+            lua_version,
+        ]
+        if rocks_version:
+            hererocks_args.extend(('--luarocks', rocks_version))
+        print(' '.join(hererocks_args))
 
     @cmd.add('rm', 'remove', 'del')
     def cmd_rm(self, argv):
@@ -138,23 +228,19 @@ class Luamb(object):
             print('='*len(env))
             print(env_path)
             lua_bin = os.path.join(env_path, 'bin', 'lua')
-            ok, output = self._get_output([lua_bin, '-v'], regex=self.re_lua)
-            if ok:
-                print(output)
-            else:
-                print('Lua -', output)
+            try:
+                print(self._get_output([lua_bin, '-v'], regex=self.re_lua))
+            except LuambException as exc:
+                print('Lua -', exc)
             luarocks_bin = os.path.join(env_path, 'bin', 'luarocks')
-            ok, output = self._get_output([luarocks_bin], regex=self.re_rocks)
-            if ok:
-                print(output)
-            else:
-                print('LuaRocks -', output)
+            try:
+                print(self._get_output([luarocks_bin], regex=self.re_rocks))
+            except LuambException as exc:
+                print('LuaRocks -', exc)
             print()
 
-    def show_help(self):
-        """print help message
-        """
-        self.print_usage()
+    def _show_main_help(self):
+        self._show_main_usage()
         print("\navailable commands:\n")
         print(self.cmd.render_help())
 
@@ -162,15 +248,15 @@ class Luamb(object):
         try:
             output = subprocess.check_output(args).decode('utf-8').strip()
         except OSError:
-            return False, "executable not found"
+            raise LuambException("executable not found")
         except subprocess.CalledProcessError:
-            return False, "error while running executable"
+            raise LuambException("error while running executable")
         if not regex:
-            return True, output
+            return output
         mo = regex.search(output)
         if mo:
-            return True, mo.group(0)
-        return False, "error parsing version"
+            return mo.group(0)
+        raise LuambException("error parsing version")
 
     def _get_supported_versions(self, lua_cls):
         versions = {v: v for v in lua_cls.versions}
@@ -182,31 +268,38 @@ class Luamb(object):
         if not lua_type:
             lua_type = self.TYPE_ALL
 
-        groupdict = self.re_ver.match(version_string).groupdict()
+        groupdict = self.re_lua_v.match(version_string).groupdict()
         prefix = bool(groupdict['prefix'])
         jit = bool(groupdict['jit'])
         version = groupdict['version']
 
         if lua_type == self.TYPE_ALL and not prefix:
-            raise ValueError("specify implementation (PUC-Rio Lua or LuaJIT)")
+            raise LuambException(
+                "specify implementation (PUC-Rio Lua or LuaJIT)")
         if lua_type == self.TYPE_RIO and jit:
-            raise ValueError("specify PUC-Rio Lua version, not LuaJIT")
+            raise LuambException("specify PUC-Rio Lua version, not LuaJIT")
         if lua_type == self.TYPE_JIT and prefix and not jit:
-            raise ValueError("specify LuaJIT version, not PUC-Rio")
+            raise LuambException("specify LuaJIT version, not PUC-Rio")
 
         if lua_type == self.TYPE_ALL:
             lua_type = self.TYPE_JIT if jit else self.TYPE_RIO
 
-        impl = 'LuaJIT' if lua_type == self.TYPE_JIT else 'PUC-Rio Lua'
-
         try:
-            norm_version = self.supported_versions[impl][version]
+            norm_version = self.supported_versions[lua_type][version]
         except KeyError:
-            raise ValueError("non supported {} version: {}".format(
-                impl, version))
+            raise LuambException("non-supported {} version: {}".format(
+                self.implementations[lua_type], version))
 
         return lua_type, norm_version
 
+    def _normalize_rocks_version(self, version_string):
+        version_string = version_string.lower()
+        version = self.re_rocks_s.match(version_string).group(1)
+        try:
+            return self.supported_versions['rocks'][version]
+        except KeyError:
+            raise LuambException("non-supported LuaRocks version: {}".format(
+                version))
 
 if __name__ == '__main__':
 
@@ -224,9 +317,16 @@ if __name__ == '__main__':
         error("LUAMB_DIR='{}' is not a directory".format(luamb_dir))
 
     luamb_lua_default = os.environ.get('LUAMB_LUA_DEFAULT')
+    luamb_luarocks_default = os.environ.get('LUAMB_LUAROCKS_DEFAULT')
 
-    Luamb(
+    luamb = Luamb(
         env_dir=luamb_dir,
         lua_default=luamb_lua_default,
+        luarocks_default=luamb_luarocks_default,
         hererocks_module=hererocks,
-    ).run(sys.argv)
+    )
+
+    try:
+        luamb.run()
+    except LuambException as exc:
+        print(exc)
