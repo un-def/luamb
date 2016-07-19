@@ -1,4 +1,5 @@
 LUAMB_ORIG_PS1=$PS1
+LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
 
 
 luamb_is_active() {
@@ -37,14 +38,21 @@ luamb_off() {
 }
 
 
-luamb() {
-    if [ $# -eq 0 ]
+luamb_cmd() {
+    # set LUAMB_SCRIPT_PATH=/path/to/luamb.py in development mode
+    if [ -z "$LUAMB_SCRIPT_PATH" ]
     then
-        $LUAMB_BIN
-        return
+        $LUAMB_PYTHON_BIN -m luamb "$@"
+    else
+        $LUAMB_PYTHON_BIN $LUAMB_SCRIPT_PATH "$@"
     fi
+    return $?
+}
+
+
+luamb() {
     case "$1" in
-        "on")
+        "on"|"enable")
             if [ -z "$2" ]
             then
                 echo "usage: luamb on ENV_NAME"
@@ -52,10 +60,10 @@ luamb() {
             fi
             luamb_on $2
             ;;
-        "off")
+        "off"|"disable")
             luamb_off
             ;;
         *)
-            $LUAMB_BIN "$@"
+            luamb_cmd "$@"
     esac
 }
