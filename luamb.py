@@ -5,18 +5,13 @@ import os
 import re
 import argparse
 import subprocess
+from importlib import import_module
 from collections import OrderedDict
 
 
 def error(msg, exit_status=1):
     print(msg)
     sys.exit(exit_status)
-
-
-try:
-    import hererocks
-except ImportError:
-    error("'hererocks' is not installed")
 
 
 class CMD(object):
@@ -48,7 +43,7 @@ class CMD(object):
                 continue
             cmd_str = cmd
             if cmd_info['aliases']:
-                cmd_str = '{0} (aliases: {1})'.format(
+                cmd_str = '{0: <4}(aliases: {1})'.format(
                     cmd_str, ', '.join(cmd_info['aliases']))
             if cmd_info['desc']:
                 cmd_str = '{0: <30}{1}'.format(cmd_str, cmd_info['desc'])
@@ -58,13 +53,32 @@ class CMD(object):
 
 class Luamb(object):
 
-    cmd = CMD()
+    TYPE_RIO = 1
+    TYPE_JIT = 2
+    TYPE_ALL = TYPE_RIO | TYPE_JIT
+
     re_lua = re.compile('Lua(?:JIT)? [0-9.]+')
     re_rocks = re.compile('LuaRocks [0-9.]+')
+    re_ver = re.compile('(?P<prefix>(?:lua)?(?P<jit>jit)?)(?P<version>.+)')
+
     usage = "luamb COMMAND [ARGS]"
 
-    def __init__(self, luamb_dir, argv):
-        self.luamb_dir = luamb_dir
+    cmd = CMD()
+
+    def __init__(self, env_dir, lua_default=None, hererocks_module=None):
+        self.env_dir = env_dir
+        self.lua_default = lua_default
+        self.hererocks_module = hererocks_module or import_module('hererocks')
+        self.supported_versions = {
+            'PUC-Rio Lua': self._get_supported_versions(
+                self.hererocks_module.RioLua),
+            'LuaJIT': self._get_supported_versions(
+                self.hererocks_module.LuaJIT),
+            'LuaRocks': self._get_supported_versions(
+                self.hererocks_module.LuaRocks),
+        }
+
+    def run(self, argv):
         parser = argparse.ArgumentParser(
             prog='luamb',
             description="luamb - Lua virtual environment",
@@ -74,7 +88,7 @@ class Luamb(object):
         parser.add_argument(
             'command',
             nargs='?',
-            default='help',
+            default='',
         )
         parser.add_argument(
             '-h', '--help',
@@ -82,34 +96,44 @@ class Luamb(object):
         )
         args = parser.parse_args(argv[1:2])
         self.print_usage = parser.print_usage
-        if args.help:
-            self.cmd_help()
+        if not args.command or args.help:
+            self.show_help()
             return
         method = self.cmd.resolve(args.command)
         if not method:
             print("command '{}' not found\n"
-                  "try 'luamb help'".format(args.command))
+                  "try 'luamb --help'".format(args.command))
         else:
             method(self, argv[2:])
 
-    @cmd.add('new', 'create', 'add')
-    def cmd_new(self, argv):
+    @cmd.add('on', 'enable')
+    def cmd_on(self, argv):
+        """activate environment
+        """
+
+    @cmd.add('off', 'disable')
+    def cmd_off(self, argv):
+        """deactivate environment
+        """
+
+    @cmd.add('mk', 'new', 'create')
+    def cmd_mk(self, argv):
         """create new environment
         """
 
-    @cmd.add('remove', 'rm', 'del')
-    def cmd_remove(self):
+    @cmd.add('rm', 'remove', 'del')
+    def cmd_rm(self, argv):
         """remove environment
         """
 
-    @cmd.add('list', 'ls')
-    def cmd_list(self, argv):
+    @cmd.add('ls', 'list')
+    def cmd_ls(self, argv):
         """list available environments
         """
-        envs = next(os.walk(self.luamb_dir))[1]
+        envs = next(os.walk(self.env_dir))[1]
         envs.sort()
         for env in envs:
-            env_path = os.path.join(self.luamb_dir, env)
+            env_path = os.path.join(self.env_dir, env)
             print(env)
             print('='*len(env))
             print(env_path)
@@ -127,8 +151,7 @@ class Luamb(object):
                 print('LuaRocks -', output)
             print()
 
-    @cmd.add('help')
-    def cmd_help(self, argv=None):
+    def show_help(self):
         """print help message
         """
         self.print_usage()
@@ -149,13 +172,48 @@ class Luamb(object):
             return True, mo.group(0)
         return False, "error parsing version"
 
-    def _make_version_dict(self, lua_cls):
-        versions = {v: None for v in lua_cls.versions}
+    def _get_supported_versions(self, lua_cls):
+        versions = {v: v for v in lua_cls.versions}
         versions.update(lua_cls.translations)
         return versions
 
+    def _normalize_lua_version(self, version_string, lua_type=None):
+        version_string = version_string.lower()
+        if not lua_type:
+            lua_type = self.TYPE_ALL
+
+        groupdict = self.re_ver.match(version_string).groupdict()
+        prefix = bool(groupdict['prefix'])
+        jit = bool(groupdict['jit'])
+        version = groupdict['version']
+
+        if lua_type == self.TYPE_ALL and not prefix:
+            raise ValueError("specify implementation (PUC-Rio Lua or LuaJIT)")
+        if lua_type == self.TYPE_RIO and jit:
+            raise ValueError("specify PUC-Rio Lua version, not LuaJIT")
+        if lua_type == self.TYPE_JIT and prefix and not jit:
+            raise ValueError("specify LuaJIT version, not PUC-Rio")
+
+        if lua_type == self.TYPE_ALL:
+            lua_type = self.TYPE_JIT if jit else self.TYPE_RIO
+
+        impl = 'LuaJIT' if lua_type == self.TYPE_JIT else 'PUC-Rio Lua'
+
+        try:
+            norm_version = self.supported_versions[impl][version]
+        except KeyError:
+            raise ValueError("non supported {} version: {}".format(
+                impl, version))
+
+        return lua_type, norm_version
+
 
 if __name__ == '__main__':
+
+    try:
+        import hererocks
+    except ImportError:
+        error("'hererocks' is not installed")
 
     luamb_dir = os.environ.get('LUAMB_DIR')
     if not luamb_dir:
@@ -165,4 +223,10 @@ if __name__ == '__main__':
     if not os.path.isdir(luamb_dir):
         error("LUAMB_DIR='{}' is not a directory".format(luamb_dir))
 
-    Luamb(luamb_dir=luamb_dir, argv=sys.argv)
+    luamb_lua_default = os.environ.get('LUAMB_LUA_DEFAULT')
+
+    Luamb(
+        env_dir=luamb_dir,
+        lua_default=luamb_lua_default,
+        hererocks_module=hererocks,
+    ).run(sys.argv)
