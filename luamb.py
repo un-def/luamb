@@ -82,11 +82,11 @@ class Luamb(object):
         self.luarocks_default = luarocks_default
         self.hererocks_module = hererocks_module or import_module('hererocks')
         self.supported_versions = {
-            self.TYPE_RIO: self._get_supported_versions(
+            self.TYPE_RIO: self._fetch_supported_versions(
                 self.hererocks_module.RioLua),
-            self.TYPE_JIT: self._get_supported_versions(
+            self.TYPE_JIT: self._fetch_supported_versions(
                 self.hererocks_module.LuaJIT),
-            'rocks': self._get_supported_versions(
+            'rocks': self._fetch_supported_versions(
                 self.hererocks_module.LuaRocks),
         }
 
@@ -122,11 +122,15 @@ class Luamb(object):
     def cmd_on(self, argv):
         """activate environment
         """
+        print("usage: luamb on ENV_NAME\nthis command is implemented "
+              "as shell function and can't be called via luamb.py")
 
     @cmd.add('off', 'disable')
     def cmd_off(self, argv):
         """deactivate environment
         """
+        print("usage: luamb off\nthis command is implemented "
+              "as shell function and can't be called via luamb.py")
 
     @cmd.add('mk', 'new', 'create')
     def cmd_mk(self, argv):
@@ -137,6 +141,7 @@ class Luamb(object):
         )
         parser.add_argument(
             'env_name',
+            metavar='ENV_NAME',
             help="environment name (used as directory name)"
         )
         parser.add_argument(
@@ -282,10 +287,16 @@ class Luamb(object):
             return mo.group(0)
         raise LuambException("error parsing version")
 
-    def _get_supported_versions(self, lua_cls):
+    def _fetch_supported_versions(self, lua_cls):
         versions = {v: v for v in lua_cls.versions}
         versions.update(lua_cls.translations)
         return versions
+
+    def _get_supported_versions(self, product_key, separator=None):
+        versions = list(sorted(self.supported_versions[product_key]))
+        if not separator:
+            return versions
+        return separator.join(versions)
 
     def _normalize_lua_version(self, version_string, lua_type=None):
         version_string = version_string.lower()
@@ -311,8 +322,15 @@ class Luamb(object):
         try:
             norm_version = self.supported_versions[lua_type][version]
         except KeyError:
-            raise LuambException("non-supported {} version: {}".format(
-                self.implementations[lua_type], version))
+            supported_versions = self._get_supported_versions(lua_type, '  ')
+            raise LuambException(
+                "non-supported {} version: {}\n"
+                "supported versions are: {}".format(
+                    self.implementations[lua_type],
+                    version,
+                    supported_versions
+                )
+            )
 
         return lua_type, norm_version
 
@@ -322,8 +340,14 @@ class Luamb(object):
         try:
             return self.supported_versions['rocks'][version]
         except KeyError:
-            raise LuambException("non-supported LuaRocks version: {}".format(
-                version))
+            supported_versions = self._get_supported_versions('rocks', '  ')
+            raise LuambException(
+                "non-supported LuaRocks version: {}\n"
+                "supported versions are: {}".format(
+                    version,
+                    supported_versions
+                )
+            )
 
 if __name__ == '__main__':
 
