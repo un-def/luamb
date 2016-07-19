@@ -132,12 +132,6 @@ class Luamb(object):
     def cmd_mk(self, argv):
         """create new environment
         """
-        try:
-            extra_index = argv.index('--')
-            extra_argv = argv[extra_index+1]
-            argv = argv[:extra_index]
-        except ValueError:
-            extra_argv = []
         parser = argparse.ArgumentParser(
             prog='luamb mk',
         )
@@ -168,7 +162,7 @@ class Luamb(object):
             help="don't install LuaRocks (if default version specified via "
                  "environment variable)",
         )
-        args = parser.parse_args(argv)
+        args, extra_args = parser.parse_known_args(argv)
 
         env_name = args.env_name
         if not self.re_env_name.match(env_name):
@@ -222,7 +216,7 @@ class Luamb(object):
         ]
         if rocks_version:
             hererocks_args.extend(['--luarocks', rocks_version])
-        hererocks_args.extend(extra_argv)
+        hererocks_args.extend(extra_args)
         hererocks_args.append(env_path)
         try:
             subprocess.check_call(hererocks_args)

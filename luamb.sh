@@ -1,3 +1,10 @@
+if [ -z "$LUAMB_DIR" ]
+then
+  echo "LUAMB_DIR variable not set"
+  return 1
+fi
+
+
 LUAMB_ORIG_PS1=$PS1
 LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
 
