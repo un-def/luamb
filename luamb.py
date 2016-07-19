@@ -132,12 +132,23 @@ class Luamb(object):
     def cmd_mk(self, argv):
         """create new environment
         """
+        try:
+            extra_index = argv.index('--')
+            extra_argv = argv[extra_index+1]
+            argv = argv[:extra_index]
+        except ValueError:
+            extra_argv = []
         parser = argparse.ArgumentParser(
             prog='luamb mk',
         )
         parser.add_argument(
             'env_name',
             help="environment name (used as directory name)"
+        )
+        parser.add_argument(
+            '-a', '--associate',
+            metavar='PROJECT_DIR',
+            help="associate env with project",
         )
         parser.add_argument(
             '-l', '--lua',
@@ -201,15 +212,26 @@ class Luamb(object):
         else:
             rocks_version = None
 
+        env_path = os.path.join(self.env_dir, env_name)
+
         hererocks_args = [
-            'hererocks',
-            os.path.join(self.env_dir, env_name),
+            sys.executable,
+            self.hererocks_module.__file__,
             '--lua' if lua_type == self.TYPE_RIO else '--luajit',
             lua_version,
         ]
         if rocks_version:
-            hererocks_args.extend(('--luarocks', rocks_version))
-        print(' '.join(hererocks_args))
+            hererocks_args.extend(['--luarocks', rocks_version])
+        hererocks_args.extend(extra_argv)
+        hererocks_args.append(env_path)
+        try:
+            subprocess.check_call(hererocks_args)
+        except subprocess.CalledProcessError:
+            raise LuambException("error while running hererocks")
+
+        if args.associate:
+            with open(os.path.join(env_path, '.project'), 'w') as f:
+                f.write(args.associate)
 
     @cmd.add('rm', 'remove', 'del')
     def cmd_rm(self, argv):
@@ -231,12 +253,19 @@ class Luamb(object):
             try:
                 print(self._get_output([lua_bin, '-v'], regex=self.re_lua))
             except LuambException as exc:
-                print('Lua -', exc)
+                print('Lua:', exc)
             luarocks_bin = os.path.join(env_path, 'bin', 'luarocks')
             try:
                 print(self._get_output([luarocks_bin], regex=self.re_rocks))
             except LuambException as exc:
-                print('LuaRocks -', exc)
+                print('LuaRocks:', exc)
+            project_file_path = os.path.join(env_path, '.project')
+            if os.path.isfile(project_file_path):
+                with open(project_file_path) as f:
+                    project = f.read().strip()
+                print('project:', project)
+            else:
+                print('no associated project')
             print()
 
     def _show_main_help(self):
@@ -246,7 +275,8 @@ class Luamb(object):
 
     def _get_output(self, args, regex=None):
         try:
-            output = subprocess.check_output(args).decode('utf-8').strip()
+            output = subprocess.check_output(
+                args, stderr=subprocess.STDOUT).decode('utf-8').strip()
         except OSError:
             raise LuambException("executable not found")
         except subprocess.CalledProcessError:
@@ -329,4 +359,4 @@ if __name__ == '__main__':
     try:
         luamb.run()
     except LuambException as exc:
-        print(exc)
+        sys.exit(exc)

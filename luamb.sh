@@ -22,6 +22,10 @@ luamb_on() {
     fi
     PS1="($ENV_NAME) $LUAMB_ORIG_PS1"
     source "$ENV_PATH/bin/activate"
+    if [ -f "$ENV_PATH/.project" ]
+    then
+      cd $(cat "$ENV_PATH/.project")
+    fi
     echo "environment activated: $ENV_NAME"
 }
 
@@ -42,10 +46,11 @@ luamb_cmd() {
     # set LUAMB_SCRIPT_PATH=/path/to/luamb.py in development mode
     if [ -z "$LUAMB_SCRIPT_PATH" ]
     then
-        $LUAMB_PYTHON_BIN -m luamb "$@"
+        CMD="$LUAMB_PYTHON_BIN -m luamb $@"
     else
-        $LUAMB_PYTHON_BIN $LUAMB_SCRIPT_PATH "$@"
+        CMD="$LUAMB_PYTHON_BIN $LUAMB_SCRIPT_PATH $@"
     fi
+    $CMD
     return $?
 }
 
