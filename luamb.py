@@ -10,6 +10,10 @@ from importlib import import_module
 from collections import OrderedDict
 
 
+__author__ = 'un.def <un.def@ya.ru>'
+__version__ = '0.1.0'
+
+
 def error(msg, exit_status=1):
     print(msg)
     sys.exit(exit_status)
