@@ -5,6 +5,7 @@ then
 fi
 
 
+export LUAMB_ACTIVE_ENV=""
 LUAMB_ORIG_PS1=$PS1
 LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
 
@@ -28,6 +29,7 @@ luamb_on() {
         deactivate-lua
     fi
     PS1="($ENV_NAME) $LUAMB_ORIG_PS1"
+    LUAMB_ACTIVE_ENV=$ENV_NAME
     source "$ENV_PATH/bin/activate"
     if [ -f "$ENV_PATH/.project" ]
     then
@@ -39,6 +41,7 @@ luamb_on() {
 
 luamb_off() {
     PS1=$LUAMB_ORIG_PS1
+    LUAMB_ACTIVE_ENV=""
     if luamb_is_active
     then
         deactivate-lua

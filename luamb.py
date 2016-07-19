@@ -1,8 +1,9 @@
 from __future__ import print_function
 
-import sys
 import os
 import re
+import sys
+import shutil
 import argparse
 import subprocess
 from importlib import import_module
@@ -75,9 +76,11 @@ class Luamb(object):
 
     cmd = CMD()
 
-    def __init__(self, env_dir, lua_default=None, luarocks_default=None,
+    def __init__(self, env_dir, active_env=None,
+                 lua_default=None, luarocks_default=None,
                  hererocks_module=None):
         self.env_dir = env_dir
+        self.active_env = active_env
         self.lua_default = lua_default
         self.luarocks_default = luarocks_default
         self.hererocks_module = hererocks_module or import_module('hererocks')
@@ -236,6 +239,18 @@ class Luamb(object):
     def cmd_rm(self, argv):
         """remove environment
         """
+        if not argv or len(argv) > 1 or '-h' in argv or '--help' in argv:
+            print("usage: luamb rm ENV_NAME")
+            return
+        env_name = argv[0]
+        env_path = os.path.join(self.env_dir, env_name)
+        if not os.path.isdir(env_path):
+            raise LuambException("env '{}' doesn't exist".format(env_name))
+        try:
+            shutil.rmtree(env_path)
+        except OSError:
+            raise LuambException("can't delete {}".format(env_path))
+        print("env '{}' has been deleted".format(env_name))
 
     @cmd.add('ls', 'list')
     def cmd_ls(self, argv):
@@ -245,6 +260,8 @@ class Luamb(object):
         envs.sort()
         for env in envs:
             env_path = os.path.join(self.env_dir, env)
+            if env == self.active_env:
+                env = '[*] '+env
             print(env)
             print('='*len(env))
             print(env_path)
@@ -366,9 +383,11 @@ if __name__ == '__main__':
 
     luamb_lua_default = os.environ.get('LUAMB_LUA_DEFAULT')
     luamb_luarocks_default = os.environ.get('LUAMB_LUAROCKS_DEFAULT')
+    luamb_active_env = os.environ.get('LUAMB_ACTIVE_ENV')
 
     luamb = Luamb(
         env_dir=luamb_dir,
+        active_env=luamb_active_env,
         lua_default=luamb_lua_default,
         luarocks_default=luamb_luarocks_default,
         hererocks_module=hererocks,
