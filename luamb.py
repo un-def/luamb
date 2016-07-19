@@ -233,7 +233,7 @@ class Luamb(object):
 
         if args.associate:
             with open(os.path.join(env_path, '.project'), 'w') as f:
-                f.write(args.associate)
+                f.write(os.path.abspath(os.path.expandvars(args.associate)))
 
     @cmd.add('rm', 'remove', 'del')
     def cmd_rm(self, argv):
@@ -377,7 +377,7 @@ if __name__ == '__main__':
     if not luamb_dir:
         error("LUAMB_DIR variable is not set")
 
-    luamb_dir = os.path.abspath(luamb_dir)
+    luamb_dir = os.path.expandvars(luamb_dir)
     if not os.path.isdir(luamb_dir):
         error("LUAMB_DIR='{}' is not a directory".format(luamb_dir))
 
