@@ -2,7 +2,8 @@
 =========
 
 Lua environment manager built on top of
-`hererocks <https://github.com/mpeterv/hererocks>`__.
+`hererocks <https://github.com/mpeterv/hererocks>`__ and inspired by
+`virtualenvwrapper <https://bitbucket.org/virtualenvwrapper/virtualenvwrapper>`__.
 
 Installation
 ~~~~~~~~~~~~
@@ -51,7 +52,7 @@ Examples
 
    ::
 
-       $ luamb mk myproject -j 2.0.4 -a /home/user/projects/jitproj
+       $ luamb mk jittest -j 2.0.4 -a /home/user/projects/jitproj
 
 -  Set LuaJIT 2.0 (2.0.4) and latest LuaRocks version by default:
 
@@ -72,7 +73,7 @@ Examples
 
    ::
 
-       $ luamb mk norocs --no-luarocks --verbose
+       $ luamb mk norocks --no-luarocks --verbose
 
 -  Activate 'newenv' environment:
 
@@ -98,7 +99,7 @@ Commands
 
 Each command has one or more alias.
 
-``on`` \| ``activate`` — activate existing environment
+``on`` \| ``enable`` — activate existing environment
 
 ``off`` \| ``disable`` — deactivate current environment
 
