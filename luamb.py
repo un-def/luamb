@@ -11,7 +11,7 @@ from collections import OrderedDict
 
 
 __author__ = 'un.def <un.def@ya.ru>'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 
 def error(msg, exit_status=1):

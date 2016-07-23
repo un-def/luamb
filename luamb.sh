@@ -1,3 +1,6 @@
+# author  : un.def <un.def@ya.ru>
+# version : 0.1.1
+
 if [ -z "$LUAMB_DIR" ]
 then
   echo "LUAMB_DIR variable not set"
