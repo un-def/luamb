@@ -4,19 +4,23 @@ then
   return 1
 fi
 
-
 export LUAMB_ACTIVE_ENV=""
 LUAMB_ORIG_PS1=$PS1
 LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
 
+if [ "$LUAMB_COMPLETION" = "true" ]
+then
+    complete -F _luamb luamb
+fi
 
-luamb_is_active() {
+
+__luamb_is_active() {
     type deactivate-lua > /dev/null 2>&1
     return $?
 }
 
 
-luamb_on() {
+__luamb_on() {
     ENV_NAME=$(basename $1)   # tricky way to prevent slashes in env name
     ENV_PATH=$(readlink -f "$LUAMB_DIR/$ENV_NAME")
     if [ ! -d "$ENV_PATH" ]
@@ -24,7 +28,7 @@ luamb_on() {
         echo "environment $ENV_PATH doesn't exist"
         return 1
     fi
-    if luamb_is_active
+    if __luamb_is_active
     then
         deactivate-lua
     fi
@@ -39,10 +43,10 @@ luamb_on() {
 }
 
 
-luamb_off() {
+__luamb_off() {
     PS1=$LUAMB_ORIG_PS1
     LUAMB_ACTIVE_ENV=""
-    if luamb_is_active
+    if __luamb_is_active
     then
         deactivate-lua
         echo "environment deactivated"
@@ -52,7 +56,7 @@ luamb_off() {
 }
 
 
-luamb_cmd() {
+__luamb_cmd() {
     # set LUAMB_SCRIPT_PATH=/path/to/luamb.py in development mode
     if [ -z "$LUAMB_SCRIPT_PATH" ]
     then
@@ -73,12 +77,34 @@ luamb() {
                 echo "usage: luamb on ENV_NAME"
                 return 1
             fi
-            luamb_on $2
+            __luamb_on $2
             ;;
         "off"|"disable")
-            luamb_off
+            __luamb_off
             ;;
         *)
-            luamb_cmd "$@"
+            __luamb_cmd "$@"
     esac
+}
+
+
+_luamb() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    case $prev in
+        "luamb")
+            opts="on enable off disable mk new create \
+                  rm remove del ls list --help"
+            ;;
+        "on"|"enable")
+            opts=$(find "$LUAMB_DIR" -mindepth 1 -maxdepth 1 \
+                   -type d -printf "%f ")
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+    COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
 }

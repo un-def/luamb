@@ -14,7 +14,7 @@ Installation
 
        $ pip install luamb
 
-2. Create directory for envs:
+2. Create directory for environments:
 
    ::
 
@@ -22,14 +22,23 @@ Installation
 
 3. Configure your shell (add these lines to ``~/.bashrc``):
 
-   ::
+   .. code:: shell
 
+       # path to directory with environments
        export LUAMB_DIR=$HOME/.luambenvs
-       source /usr/local/bin/luamb.sh          # default path in Debian if luamb has been installed globally
+
+   .. code:: shell
+
        # optional variables:
-       # LUAMB_LUA_DEFAULT=lua5.3              # default Lua version
-       # LUAMB_LUAROCKS_DEFAULT=latest         # default LuaRocks version
-       # LUAMB_PYTHON_BIN=/usr/bin/python3     # explicitly set Python executable
+       export LUAMB_LUA_DEFAULT=lua5.3        # default Lua version
+       export LUAMB_LUAROCKS_DEFAULT=latest   # default LuaRocks version
+       LUAMB_COMPLETION=true                  # enable Bash completion
+       LUAMB_PYTHON_BIN=/usr/bin/python3      # explicitly set Python executable
+
+   .. code:: shell
+
+       # make some magic
+       source /usr/local/bin/luamb.sh         # default path in Debian if luamb has been installed globally
 
 4. Try to execute in new shell:
 
