@@ -5,7 +5,6 @@ import re
 import sys
 import shutil
 import argparse
-import subprocess
 from importlib import import_module
 from collections import OrderedDict
 if sys.version_info[0] == 2:
@@ -225,8 +224,6 @@ class Luamb(object):
         env_path = os.path.join(self.env_dir, env_name)
 
         hererocks_args = [
-            sys.executable,
-            self.hererocks_module.__file__,
             '--lua' if lua_type == self.TYPE_RIO else '--luajit',
             lua_version,
         ]
@@ -234,10 +231,13 @@ class Luamb(object):
             hererocks_args.extend(['--luarocks', rocks_version])
         hererocks_args.extend(extra_args)
         hererocks_args.append(env_path)
+
         try:
-            subprocess.check_call(hererocks_args)
-        except subprocess.CalledProcessError:
-            raise LuambException("error while running hererocks")
+            self._call_hererocks(hererocks_args)
+        except Exception as exc:
+            exc_type = exc.__class__.__name__
+            raise LuambException(
+                "error while running hererocks: {}\n{}".format(exc_type, exc))
 
         if args.associate:
             with open(os.path.join(env_path, '.project'), 'w') as f:
@@ -281,7 +281,7 @@ class Luamb(object):
             self._show_env_info(env)
             print('\n')
 
-    def _call_hererocks(self, argv, capture_output=True):
+    def _call_hererocks(self, argv, capture_output=False):
         if capture_output:
             string_buffer = StringIO()
             sys.stdout = sys.stderr = string_buffer
@@ -319,7 +319,7 @@ class Luamb(object):
             env_name = '(' + env_name + ')'
         print(env_name)
         print('=' * len(env_name))
-        self._call_hererocks(['--show', env_path], capture_output=False)
+        self._call_hererocks(['--show', env_path])
         project_file_path = os.path.join(env_path, '.project')
         if os.path.isfile(project_file_path):
             with open(project_file_path) as f:
