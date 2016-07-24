@@ -99,9 +99,9 @@ _luamb() {
     case $prev in
         "luamb")
             opts="on enable off disable mk new create \
-                  rm remove del ls list --help"
+                  rm remove del info show ls list --help"
             ;;
-        "on"|"enable")
+        "on"|"enable"|"rm"|"remove"|"del"|"info"|"show")
             opts=$(find "$LUAMB_DIR" -mindepth 1 -maxdepth 1 \
                    -type d -printf "%f ")
             ;;
