@@ -116,6 +116,12 @@ class Luamb(object):
             '-h', '--help',
             action='store_true',
         )
+        parser.add_argument(
+            '-v', '--version',
+            action='version',
+            version='luamb ' + __version__,
+            help="show luamb version number and exit",
+        )
         args = parser.parse_args(argv[:1])
         self._show_main_usage = parser.print_usage
         if not args.command or args.help:
@@ -148,9 +154,11 @@ class Luamb(object):
         """
         parser = argparse.ArgumentParser(
             prog='luamb mk',
+            add_help=False,
         )
         parser.add_argument(
             'env_name',
+            nargs='?',
             metavar='ENV_NAME',
             help="environment name (used as directory name)"
         )
@@ -177,7 +185,30 @@ class Luamb(object):
             help="don't install LuaRocks (if default version specified via "
                  "environment variable)",
         )
+        parser.add_argument(
+            '-v', '--version',
+            action='version',
+            version=self.hererocks.hererocks_version,
+            help="show hererocks version number and exit",
+        )
+        parser.add_argument(
+            '-h', '--help',
+            action='store_true',
+        )
         args, extra_args = parser.parse_known_args(argv)
+
+        if not args.env_name or args.help:
+            _, capture = self._call_hererocks(['--help'], capture_output=True)
+            _, _, hererocks_help = capture.partition("optional arguments:\n")
+            print("""usage: luamb mk [-a PROJECT_DIR] HEREROCKS_ARGS ENV_NAME
+
+this command is a tiny wrapper around hererocks tool
+you can use any hererocks arguments (see below), but instead of a full path
+to new environment you should specify only its name
+in addition, you can specify a project path with -a/--associate argument
+""")
+            print(hererocks_help)
+            return
 
         env_name = args.env_name
         if not self.re_env_name.match(env_name):
