@@ -8,6 +8,10 @@ import argparse
 import subprocess
 from importlib import import_module
 from collections import OrderedDict
+if sys.version_info[0] == 2:
+    from StringIO import StringIO
+else:
+    from io import StringIO
 
 
 __author__ = 'un.def <un.def@ya.ru>'
@@ -72,30 +76,30 @@ class Luamb(object):
         TYPE_JIT: 'LuaJIT',
     }
 
-    re_lua = re.compile('Lua(?:JIT)? [0-9.]+')
-    re_rocks = re.compile('LuaRocks [0-9.]+')
-    re_lua_v = re.compile('(?P<prefix>(?:lua)?(?P<jit>jit)?)(?P<version>.+)')
-    re_rocks_s = re.compile('(?:lua)?(?:rocks)?(.+)')
+    re_lua = re.compile('(?P<prefix>(?:lua)?(?P<jit>jit)?)(?P<version>.+)')
+    re_rocks = re.compile('(?:lua)?(?:rocks)?(.+)')
     re_env_name = re.compile('^[^/\*?]+$')
 
     cmd = CMD()
 
     def __init__(self, env_dir, active_env=None,
                  lua_default=None, luarocks_default=None,
-                 hererocks_module=None):
+                 hererocks=None):
         self.env_dir = env_dir
         self.active_env = active_env
         self.lua_default = lua_default
         self.luarocks_default = luarocks_default
-        self.hererocks_module = hererocks_module or import_module('hererocks')
+        self.hererocks = hererocks or import_module('hererocks')
         self.supported_versions = {
             self.TYPE_RIO: self._fetch_supported_versions(
-                self.hererocks_module.RioLua),
+                self.hererocks.RioLua),
             self.TYPE_JIT: self._fetch_supported_versions(
-                self.hererocks_module.LuaJIT),
+                self.hererocks.LuaJIT),
             'rocks': self._fetch_supported_versions(
-                self.hererocks_module.LuaRocks),
+                self.hererocks.LuaRocks),
         }
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
 
     def run(self, argv=None):
         if not argv:
@@ -265,48 +269,37 @@ class Luamb(object):
         for env in envs:
             env_path = os.path.join(self.env_dir, env)
             if env == self.active_env:
-                env = '[*] '+env
+                env = '(' + env + ')'
             print(env)
-            print('='*len(env))
-            print(env_path)
-            lua_bin = os.path.join(env_path, 'bin', 'lua')
-            try:
-                print(self._get_output([lua_bin, '-v'], regex=self.re_lua))
-            except LuambException as exc:
-                print('Lua:', exc)
-            luarocks_bin = os.path.join(env_path, 'bin', 'luarocks')
-            try:
-                print(self._get_output([luarocks_bin], regex=self.re_rocks))
-            except LuambException as exc:
-                print('LuaRocks:', exc)
+            print('=' * len(env))
+            self._call_hererocks(['--show', env_path], capture_output=False)
             project_file_path = os.path.join(env_path, '.project')
             if os.path.isfile(project_file_path):
                 with open(project_file_path) as f:
-                    project = f.read().strip()
-                print('project:', project)
-            else:
-                print('no associated project')
-            print()
+                    print('Project:', f.read().strip())
+            print('\n')
+
+    def _call_hererocks(self, argv, capture_output=True):
+        if capture_output:
+            string_buffer = StringIO()
+            sys.stdout = sys.stderr = string_buffer
+        exit_status = None
+        try:
+            self.hererocks.main(argv=argv)
+        except SystemExit as e:
+            exit_status = e.code
+        if capture_output:
+            sys.stdout = self.stdout
+            sys.stderr = self.stderr
+            output = string_buffer.getvalue()
+            string_buffer.close()
+            return exit_status, output
+        return exit_status
 
     def _show_main_help(self):
         self._show_main_usage()
         print("\navailable commands:\n")
         print(self.cmd.render_help())
-
-    def _get_output(self, args, regex=None):
-        try:
-            output = subprocess.check_output(
-                args, stderr=subprocess.STDOUT).decode('utf-8').strip()
-        except OSError:
-            raise LuambException("executable not found")
-        except subprocess.CalledProcessError:
-            raise LuambException("error while running executable")
-        if not regex:
-            return output
-        mo = regex.search(output)
-        if mo:
-            return mo.group(0)
-        raise LuambException("error parsing version")
 
     def _fetch_supported_versions(self, lua_cls):
         versions = {v: v for v in lua_cls.versions}
@@ -324,7 +317,7 @@ class Luamb(object):
         if not lua_type:
             lua_type = self.TYPE_ALL
 
-        groupdict = self.re_lua_v.match(version_string).groupdict()
+        groupdict = self.re_lua.match(version_string).groupdict()
         prefix = bool(groupdict['prefix'])
         jit = bool(groupdict['jit'])
         version = groupdict['version']
@@ -357,7 +350,7 @@ class Luamb(object):
 
     def _normalize_rocks_version(self, version_string):
         version_string = version_string.lower()
-        version = self.re_rocks_s.match(version_string).group(1)
+        version = self.re_rocks.match(version_string).group(1)
         try:
             return self.supported_versions['rocks'][version]
         except KeyError:
@@ -394,10 +387,10 @@ if __name__ == '__main__':
         active_env=luamb_active_env,
         lua_default=luamb_lua_default,
         luarocks_default=luamb_luarocks_default,
-        hererocks_module=hererocks,
+        hererocks=hererocks,
     )
 
     try:
         luamb.run()
     except LuambException as exc:
-        sys.exit(exc)
+        error(exc)
