@@ -52,7 +52,7 @@ class CMD(object):
                 continue
             cmd_str = cmd
             if cmd_info['aliases']:
-                cmd_str = '{0: <4}(aliases: {1})'.format(
+                cmd_str = '{0: <6}(aliases: {1})'.format(
                     cmd_str, ', '.join(cmd_info['aliases']))
             if cmd_info['desc']:
                 cmd_str = '{0: <30}{1}'.format(cmd_str, cmd_info['desc'])
@@ -251,14 +251,25 @@ class Luamb(object):
             print("usage: luamb rm ENV_NAME")
             return
         env_name = argv[0]
-        env_path = os.path.join(self.env_dir, env_name)
-        if not os.path.isdir(env_path):
-            raise LuambException("env '{}' doesn't exist".format(env_name))
+        env_path = self._get_env_path(env_name)
         try:
             shutil.rmtree(env_path)
         except OSError:
             raise LuambException("can't delete {}".format(env_path))
         print("env '{}' has been deleted".format(env_name))
+
+    @cmd.add('info', 'show')
+    def cmd_info(self, argv):
+        """show environment info
+        """
+        if '-h' in argv or '--help' in argv:
+            print("usage: luamb info [ENV_NAME]")
+            return
+        env_name = argv[0] if argv else self.active_env
+        if not env_name:
+            raise LuambException("no active environment found - "
+                                 "specify environment name")
+        self._show_env_info(env_name, mark_active=False)
 
     @cmd.add('ls', 'list')
     def cmd_ls(self, argv):
@@ -267,16 +278,7 @@ class Luamb(object):
         envs = next(os.walk(self.env_dir))[1]
         envs.sort()
         for env in envs:
-            env_path = os.path.join(self.env_dir, env)
-            if env == self.active_env:
-                env = '(' + env + ')'
-            print(env)
-            print('=' * len(env))
-            self._call_hererocks(['--show', env_path], capture_output=False)
-            project_file_path = os.path.join(env_path, '.project')
-            if os.path.isfile(project_file_path):
-                with open(project_file_path) as f:
-                    print('Project:', f.read().strip())
+            self._show_env_info(env)
             print('\n')
 
     def _call_hererocks(self, argv, capture_output=True):
@@ -300,6 +302,28 @@ class Luamb(object):
         self._show_main_usage()
         print("\navailable commands:\n")
         print(self.cmd.render_help())
+
+    def _get_env_path(self, env_name, raise_exc=True):
+        env_path = os.path.join(self.env_dir, env_name)
+        if os.path.isdir(env_path):
+            return env_path
+        if raise_exc:
+            raise LuambException("environment '{}' doesn't exist".format(
+                                 env_name))
+
+    def _show_env_info(self, env_name, mark_active=True, raise_exc=True):
+        env_path = self._get_env_path(env_name, raise_exc=raise_exc)
+        if not env_path:
+            return
+        if mark_active and env_name == self.active_env:
+            env_name = '(' + env_name + ')'
+        print(env_name)
+        print('=' * len(env_name))
+        self._call_hererocks(['--show', env_path], capture_output=False)
+        project_file_path = os.path.join(env_path, '.project')
+        if os.path.isfile(project_file_path):
+            with open(project_file_path) as f:
+                print('Project:', f.read().strip())
 
     def _fetch_supported_versions(self, lua_cls):
         versions = {v: v for v in lua_cls.versions}
