@@ -1,31 +1,22 @@
 # author  : un.def <un.def@ya.ru>
 # version : 0.1.1
 
-if [ -z "$LUAMB_DIR" ]
-then
-  echo "LUAMB_DIR variable not set"
-  return 1
-fi
 
-export LUAMB_ACTIVE_ENV=""
-LUAMB_ORIG_PS1=$PS1
-LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
-
-if [ "$LUAMB_COMPLETION" = "true" ]
-then
-    complete -F _luamb luamb
-fi
+__luamb_check_exists() {
+  type "$@" > /dev/null 2>&1
+  return $?
+}
 
 
 __luamb_is_active() {
-    type deactivate-lua > /dev/null 2>&1
+    __luamb_check_exists deactivate-lua
     return $?
 }
 
 
 __luamb_on() {
     ENV_NAME=$(basename $1)   # tricky way to prevent slashes in env name
-    ENV_PATH=$(readlink -f "$LUAMB_DIR/$ENV_NAME")
+    ENV_PATH=$($READLINK -e "$LUAMB_DIR/$ENV_NAME")
     if [ ! -d "$ENV_PATH" ]
     then
         echo "environment $ENV_PATH doesn't exist"
@@ -111,3 +102,32 @@ _luamb() {
     esac
     COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
 }
+
+
+if [ -z "$LUAMB_DIR" ]
+then
+  echo "LUAMB_DIR variable not set"
+  return 1
+fi
+
+if [ "$(uname)" = "Darwin" ]
+then
+  READLINK="greadlink"
+  if ! __luamb_check_exists $READLINK
+  then
+    echo "luamb: greadlink not found, install coreutils:"
+    echo "brew install coreutils"
+    return 1
+  fi
+else
+  READLINK="readlink"
+fi
+
+export LUAMB_ACTIVE_ENV=""
+LUAMB_ORIG_PS1=$PS1
+LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
+
+if [ "$LUAMB_COMPLETION" = "true" ]
+then
+    complete -F _luamb luamb
+fi
