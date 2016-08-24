@@ -121,6 +121,10 @@ Each command has one or more alias.
 Version history
 ~~~~~~~~~~~~~~~
 
+-  0.1.2 (2016-08-24)
+
+   -  OS X support (using ``greadlink``)
+
 -  0.1.1 (2016-07-23)
 
    -  Bash completion

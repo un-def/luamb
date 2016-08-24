@@ -1,5 +1,5 @@
 # author  : un.def <un.def@ya.ru>
-# version : 0.1.1
+# version : 0.1.2
 
 
 __luamb_check_exists() {

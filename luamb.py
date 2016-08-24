@@ -14,7 +14,7 @@ else:
 
 
 __author__ = 'un.def <un.def@ya.ru>'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 
 def error(msg, exit_status=1):
