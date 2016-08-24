@@ -117,3 +117,19 @@ Each command has one or more alias.
 ``rm`` \| ``remove`` \| ``del`` — delete existing environment
 
 ``ls`` \| ``list`` — list all environments
+
+Version history
+~~~~~~~~~~~~~~~
+
+-  0.1.1 (2016-07-23)
+
+   -  Bash completion
+
+-  0.1.0 (2016-07-20)
+
+   -  Initial release
+
+License
+~~~~~~~
+
+See `LICENSE <https://github.com/un-def/luamb/blob/master/LICENSE>`__.
