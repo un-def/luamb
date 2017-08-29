@@ -1,9 +1,15 @@
 (🌑) luamb
-=========
+==========
 
 Lua environment manager built on top of
 `hererocks <https://github.com/mpeterv/hererocks>`__ and inspired by
 `virtualenvwrapper <https://bitbucket.org/virtualenvwrapper/virtualenvwrapper>`__.
+
+Supported shells
+~~~~~~~~~~~~~~~~
+
+-  Bash
+-  Zsh
 
 Installation
 ~~~~~~~~~~~~
@@ -20,7 +26,7 @@ Installation
 
        $ mkdir $HOME/.luambenvs
 
-3. Configure your shell (add these lines to ``~/.bashrc``):
+3. Configure your shell (add these lines to ``~/.bashrc`` or ``~/.zshrc``):
 
    .. code:: shell
 
@@ -120,6 +126,10 @@ Each command has one or more alias.
 
 Version history
 ~~~~~~~~~~~~~~~
+
+-  0.2.0 (2017-08-29)
+
+   -  Zsh support
 
 -  0.1.2 (2016-08-24)
 

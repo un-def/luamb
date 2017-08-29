@@ -14,7 +14,7 @@ else:
 
 
 __author__ = 'un.def <un.def@ya.ru>'
-__version__ = '0.1.2'
+__version__ = '0.2.0'
 
 
 def error(msg, exit_status=1):
@@ -417,6 +417,7 @@ in addition, you can specify a project path with -a/--associate argument
                     supported_versions
                 )
             )
+
 
 if __name__ == '__main__':
 
