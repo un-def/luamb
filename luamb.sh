@@ -58,7 +58,7 @@ __luamb_cmd() {
     else
         CMD="$LUAMB_PYTHON_BIN $LUAMB_SCRIPT_PATH $@"
     fi
-    $CMD
+    eval $CMD
     return $?
 }
 
@@ -79,28 +79,6 @@ luamb() {
         *)
             __luamb_cmd "$@"
     esac
-}
-
-
-_luamb() {
-    local cur prev opts
-    COMPREPLY=()
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    case $prev in
-        "luamb")
-            opts="on enable off disable mk new create \
-                  rm remove del info show ls list --help"
-            ;;
-        "on"|"enable"|"rm"|"remove"|"del"|"info"|"show")
-            opts=$(find "$LUAMB_DIR" -mindepth 1 -maxdepth 1 \
-                   -type d -printf "%f ")
-            ;;
-        *)
-            return 0
-            ;;
-    esac
-    COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
 }
 
 
@@ -129,5 +107,40 @@ LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
 
 if [ "$LUAMB_COMPLETION" = "true" ]
 then
-    complete -F _luamb luamb
+    __luamb_completion() {
+        case "$1" in
+            luamb)
+                COMPLETION_OPTS="on enable off disable mk new create \
+                                 rm remove del info show ls list"
+                ;;
+            on|enable|rm|remove|del|info|show)
+                COMPLETION_OPTS=$(find "$LUAMB_DIR" -mindepth 1 -maxdepth 1 \
+                                  -type d -printf "%f ")
+                ;;
+            *)
+                COMPLETION_OPTS=""
+                ;;
+        esac
+    }
+    if [ -n "$BASH" ]
+    then
+        _luamb() {
+            local cur prev
+            cur="${COMP_WORDS[COMP_CWORD]}"
+            prev="${COMP_WORDS[COMP_CWORD-1]}"
+            __luamb_completion "$prev"
+            COMPREPLY=($(compgen -W "${COMPLETION_OPTS}" -- ${cur}))
+        }
+        complete -F _luamb luamb
+    elif [ -n "$ZSH_VERSION" ]
+    then
+        _luamb() {
+            local words prev
+            read -cA words
+            prev="${words[-2]}"
+            __luamb_completion "$prev"
+            reply=(${=COMPLETION_OPTS})
+        }
+        compctl -K _luamb luamb
+    fi
 fi
