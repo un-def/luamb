@@ -15,17 +15,18 @@ __luamb_is_active() {
 
 
 __luamb_on() {
-    ENV_NAME=$(basename $1)   # tricky way to prevent slashes in env name
+    ENV_NAME=$(basename "$1")   # tricky way to prevent slashes in env name
     ENV_PATH=$($READLINK -e "$LUAMB_DIR/$ENV_NAME")
     if [ ! -d "$ENV_PATH" ]
     then
-        echo "environment $ENV_PATH doesn't exist"
+        echo "environment doesn't exist: $ENV_NAME"
         return 1
     fi
     if __luamb_is_active
     then
         deactivate-lua
     fi
+    LUAMB_ORIG_PS1=$PS1
     PS1="($ENV_NAME) $LUAMB_ORIG_PS1"
     LUAMB_ACTIVE_ENV=$ENV_NAME
     source "$ENV_PATH/bin/activate"
@@ -38,12 +39,12 @@ __luamb_on() {
 
 
 __luamb_off() {
-    PS1=$LUAMB_ORIG_PS1
-    LUAMB_ACTIVE_ENV=""
     if __luamb_is_active
     then
         deactivate-lua
-        echo "environment deactivated"
+        echo "environment deactivated: $LUAMB_ACTIVE_ENV"
+        PS1=$LUAMB_ORIG_PS1
+        LUAMB_ACTIVE_ENV=""
     else
         echo "no active environment"
     fi
@@ -54,11 +55,11 @@ __luamb_cmd() {
     # set LUAMB_SCRIPT_PATH=/path/to/luamb.py in development mode
     if [ -z "$LUAMB_SCRIPT_PATH" ]
     then
-        CMD="$LUAMB_PYTHON_BIN -m luamb $@"
+        CMD=("$LUAMB_PYTHON_BIN" -m luamb "$@")
     else
-        CMD="$LUAMB_PYTHON_BIN $LUAMB_SCRIPT_PATH $@"
+        CMD=("$LUAMB_PYTHON_BIN" "$LUAMB_SCRIPT_PATH" "$@")
     fi
-    eval $CMD
+    "${CMD[@]}"
     return $?
 }
 
@@ -71,7 +72,7 @@ luamb() {
                 echo "usage: luamb on ENV_NAME"
                 return 1
             fi
-            __luamb_on $2
+            __luamb_on "$2"
             ;;
         "off"|"disable")
             __luamb_off
@@ -102,8 +103,7 @@ else
 fi
 
 export LUAMB_ACTIVE_ENV=""
-LUAMB_ORIG_PS1=$PS1
-LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-'/usr/bin/env python'}
+LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-$(/usr/bin/which python)}
 
 if [ "$LUAMB_COMPLETION" = "true" ]
 then
