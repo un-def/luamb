@@ -44,7 +44,7 @@ Installation
    .. code:: shell
 
        # make some magic
-       source /usr/local/bin/luamb.sh         # default path in Debian if luamb has been installed globally
+       source $(which luamb.sh)               # or absolute path like /usr/local/bin/luamb.sh
 
 4. Try to execute in new shell:
 
@@ -126,6 +126,10 @@ Each command has one or more alias.
 
 Version history
 ~~~~~~~~~~~~~~~
+
+-  0.2.1 (2018-03-25)
+
+   -  Bugfix release
 
 -  0.2.0 (2017-08-29)
 
