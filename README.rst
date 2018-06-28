@@ -44,7 +44,7 @@ Installation
    .. code:: shell
 
        # make some magic
-       source $(which luamb.sh)               # or absolute path like /usr/local/bin/luamb.sh
+       source "$(which luamb.sh)"             # or absolute path like /usr/local/bin/luamb.sh
 
 4. Try to execute in new shell:
 
