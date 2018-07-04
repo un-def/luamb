@@ -5,6 +5,7 @@ import re
 import sys
 import shutil
 import argparse
+import contextlib
 from importlib import import_module
 from collections import OrderedDict
 if sys.version_info[0] == 2:
@@ -64,6 +65,18 @@ class LuambException(Exception):
     pass
 
 
+class HererocksErrorExit(LuambException):
+
+    def __init__(self, system_exit_exc):
+        arg = system_exit_exc.args[0]
+        if isinstance(arg, int):
+            self.status = arg
+            self.message = None
+        else:
+            self.status = 1
+            self.message = arg
+
+
 class Luamb(object):
 
     TYPE_RIO = 1
@@ -97,8 +110,6 @@ class Luamb(object):
             'rocks': self._fetch_supported_versions(
                 self.hererocks.LuaRocks),
         }
-        self.stdout = sys.stdout
-        self.stderr = sys.stderr
 
     def run(self, argv=None):
         if not argv:
@@ -198,8 +209,8 @@ class Luamb(object):
         args, extra_args = parser.parse_known_args(argv)
 
         if not args.env_name or args.help:
-            _, capture = self._call_hererocks(['--help'], capture_output=True)
-            _, _, hererocks_help = capture.partition("optional arguments:\n")
+            output = self._call_hererocks(['--help'], capture_output=True)
+            hererocks_help = output.partition("optional arguments:\n")[2]
             print("""usage: luamb mk [-a PROJECT_DIR] HEREROCKS_ARGS ENV_NAME
 
 this command is a tiny wrapper around hererocks tool
@@ -265,10 +276,18 @@ in addition, you can specify a project path with -a/--associate argument
 
         try:
             self._call_hererocks(hererocks_args)
+        except HererocksErrorExit as exc:
+            msg = "hererocks exited with non-zero status: {}".format(
+                exc.status)
+            if exc.message:
+                msg = "{}\n{}".format(msg, exc.message)
+            raise LuambException(msg)
         except Exception as exc:
-            exc_type = exc.__class__.__name__
-            raise LuambException(
-                "error while running hererocks: {}\n{}".format(exc_type, exc))
+            msg = "uncaught exception while running hererocks: {}".format(
+                exc.__class__.__name__)
+            if exc.args:
+                msg = "{}\n{}".format(msg, str(exc))
+            raise LuambException(msg)
 
         if args.associate:
             with open(os.path.join(env_path, '.project'), 'w') as f:
@@ -312,22 +331,28 @@ in addition, you can specify a project path with -a/--associate argument
             self._show_env_info(env)
             print('\n')
 
-    def _call_hererocks(self, argv, capture_output=False):
+    @contextlib.contextmanager
+    def _maybe_capture_output(self, capture_output):
+        string_buffer = StringIO()
         if capture_output:
-            string_buffer = StringIO()
+            stdout, stderr = sys.stdout, sys.stderr
             sys.stdout = sys.stderr = string_buffer
-        exit_status = None
         try:
-            self.hererocks.main(argv=argv)
-        except SystemExit as e:
-            exit_status = e.code
-        if capture_output:
-            sys.stdout = self.stdout
-            sys.stderr = self.stderr
-            output = string_buffer.getvalue()
+            yield string_buffer
+        finally:
+            if capture_output:
+                sys.stdout, sys.stderr = stdout, stderr
             string_buffer.close()
-            return exit_status, output
-        return exit_status
+
+    def _call_hererocks(self, argv, capture_output=False):
+        with self._maybe_capture_output(capture_output) as output_buffer:
+            try:
+                self.hererocks.main(argv=argv)
+            except SystemExit as exc:
+                if exc.code:
+                    raise HererocksErrorExit(exc)
+            if capture_output:
+                return output_buffer.getvalue()
 
     def _show_main_help(self):
         self._show_main_usage()
