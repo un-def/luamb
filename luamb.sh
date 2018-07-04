@@ -1,10 +1,12 @@
 # author  : un.def <un.def@ya.ru>
 # version : 0.2.1
 
+# shellcheck shell=bash
+
 
 __luamb_check_exists() {
-  type "$@" > /dev/null 2>&1
-  return $?
+    type "$@" > /dev/null 2>&1
+    return $?
 }
 
 
@@ -15,32 +17,31 @@ __luamb_is_active() {
 
 
 __luamb_on() {
-    ENV_NAME=$(basename "$1")   # tricky way to prevent slashes in env name
+    # tricky way to prevent slashes in env name
+    ENV_NAME=$(basename "$1")
     ENV_PATH=$($READLINK -e "$LUAMB_DIR/$ENV_NAME")
-    if [ ! -d "$ENV_PATH" ]
-    then
+    if [ ! -d "$ENV_PATH" ]; then
         echo "environment doesn't exist: $ENV_NAME"
         return 1
     fi
-    if __luamb_is_active
-    then
+    if __luamb_is_active; then
         deactivate-lua
     fi
     LUAMB_ORIG_PS1=$PS1
     PS1="($ENV_NAME) $LUAMB_ORIG_PS1"
     LUAMB_ACTIVE_ENV=$ENV_NAME
+    # shellcheck disable=SC1090
     source "$ENV_PATH/bin/activate"
-    if [ -f "$ENV_PATH/.project" ]
-    then
-      cd $(cat "$ENV_PATH/.project")
+    if [ -f "$ENV_PATH/.project" ]; then
+        # shellcheck disable=SC2164
+        cd "$(cat "$ENV_PATH/.project")"
     fi
     echo "environment activated: $ENV_NAME"
 }
 
 
 __luamb_off() {
-    if __luamb_is_active
-    then
+    if __luamb_is_active; then
         deactivate-lua
         echo "environment deactivated: $LUAMB_ACTIVE_ENV"
         PS1=$LUAMB_ORIG_PS1
@@ -53,8 +54,7 @@ __luamb_off() {
 
 __luamb_cmd() {
     # set LUAMB_SCRIPT_PATH=/path/to/luamb.py in development mode
-    if [ -z "$LUAMB_SCRIPT_PATH" ]
-    then
+    if [ -z "$LUAMB_SCRIPT_PATH" ]; then
         CMD=("$LUAMB_PYTHON_BIN" -m luamb "$@")
     else
         CMD=("$LUAMB_PYTHON_BIN" "$LUAMB_SCRIPT_PATH" "$@")
@@ -67,8 +67,7 @@ __luamb_cmd() {
 luamb() {
     case "$1" in
         "on"|"enable")
-            if [ -z "$2" ]
-            then
+            if [ -z "$2" ]; then
                 echo "usage: luamb on ENV_NAME"
                 return 1
             fi
@@ -83,30 +82,27 @@ luamb() {
 }
 
 
-if [ -z "$LUAMB_DIR" ]
-then
-  echo "LUAMB_DIR variable not set"
-  return 1
+if [ -z "$LUAMB_DIR" ]; then
+    echo "LUAMB_DIR variable not set"
+    return 1
 fi
 
-if [ "$(uname)" = "Darwin" ]
-then
-  READLINK="greadlink"
-  if ! __luamb_check_exists $READLINK
-  then
-    echo "luamb: greadlink not found, install coreutils:"
-    echo "brew install coreutils"
-    return 1
-  fi
+if [ "$(uname)" = "Darwin" ]; then
+    READLINK="greadlink"
+    if ! __luamb_check_exists $READLINK; then
+        echo "luamb: greadlink not found, install coreutils:"
+        echo "brew install coreutils"
+        return 1
+    fi
 else
-  READLINK="readlink"
+    READLINK="readlink"
 fi
 
 export LUAMB_ACTIVE_ENV=""
+# shellcheck disable=2230
 LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-$(/usr/bin/which python)}
 
-if [ "$LUAMB_COMPLETION" = "true" ]
-then
+if [ "$LUAMB_COMPLETION" = "true" ]; then
     __luamb_completion() {
         case "$1" in
             luamb)
@@ -122,23 +118,24 @@ then
                 ;;
         esac
     }
-    if [ -n "$BASH" ]
-    then
+    if [ -n "$BASH" ]; then
         _luamb() {
             local cur prev
             cur="${COMP_WORDS[COMP_CWORD]}"
             prev="${COMP_WORDS[COMP_CWORD-1]}"
             __luamb_completion "$prev"
-            COMPREPLY=($(compgen -W "${COMPLETION_OPTS}" -- ${cur}))
+            # shellcheck disable=SC2207
+            COMPREPLY=($(compgen -W "${COMPLETION_OPTS}" -- "${cur}"))
         }
         complete -F _luamb luamb
-    elif [ -n "$ZSH_VERSION" ]
-    then
+    elif [ -n "$ZSH_VERSION" ]; then
         _luamb() {
             local words prev
+            # shellcheck disable=SC2162
             read -cA words
             prev="${words[-2]}"
             __luamb_completion "$prev"
+            # shellcheck disable=SC2034,SC2206
             reply=(${=COMPLETION_OPTS})
         }
         compctl -K _luamb luamb
