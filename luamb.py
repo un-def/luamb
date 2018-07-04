@@ -1,4 +1,5 @@
-from __future__ import print_function
+# coding: utf-8
+from __future__ import unicode_literals, print_function
 
 import os
 import re
