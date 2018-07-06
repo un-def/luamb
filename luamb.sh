@@ -16,6 +16,23 @@ __luamb_is_active() {
 }
 
 
+__luamb_unset_deactivate_function() {
+    unset -f deactivate-lua >/dev/null 2>&1
+}
+
+
+__luamb_wrap_deactivate_function() {
+    local __luamb_orig_deactivate_code
+    __luamb_orig_deactivate_code=$(typeset -f deactivate-lua | \
+        sed 's/deactivate-lua/__luamb_orig_deactivate/g')
+    __luamb_unset_deactivate_function
+    eval "$__luamb_orig_deactivate_code"
+    deactivate-lua() {
+        __luamb_off
+    }
+}
+
+
 __luamb_on() {
     # tricky way to prevent slashes in env name
     ENV_NAME=$(basename "$1")
@@ -30,8 +47,10 @@ __luamb_on() {
     LUAMB_ORIG_PS1=$PS1
     PS1="($ENV_NAME) $LUAMB_ORIG_PS1"
     LUAMB_ACTIVE_ENV=$ENV_NAME
+    __luamb_unset_deactivate_function
     # shellcheck disable=SC1090
     source "$ENV_PATH/bin/activate"
+    __luamb_wrap_deactivate_function
     if [ -f "$ENV_PATH/.project" ]; then
         # shellcheck disable=SC2164
         cd "$(cat "$ENV_PATH/.project")"
@@ -42,7 +61,8 @@ __luamb_on() {
 
 __luamb_off() {
     if __luamb_is_active; then
-        deactivate-lua
+        __luamb_orig_deactivate
+        __luamb_unset_deactivate_function
         echo "environment deactivated: $LUAMB_ACTIVE_ENV"
         PS1=$LUAMB_ORIG_PS1
         LUAMB_ACTIVE_ENV=""
