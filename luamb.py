@@ -229,37 +229,52 @@ in addition, you can specify a project path with -a/--associate argument
         if args.lua and args.luajit:
             raise LuambException("can't install both PUC-Rio Lua and LuaJIT")
 
-        if args.lua or args.luajit:
-            lua_type, lua_version = self._normalize_lua_version(
-                args.lua or args.luajit,
-                self.TYPE_RIO if args.lua else self.TYPE_JIT
-            )
+        lua_version_arg = args.lua or args.luajit
+        if lua_version_arg:
+            lua_type = self.TYPE_RIO if args.lua else self.TYPE_JIT
+            if self._is_local_path_or_git_uri(lua_version_arg):
+                lua_version = lua_version_arg
+            else:
+                _, lua_version = self._normalize_lua_version(
+                    args.lua or args.luajit, lua_type)
         else:
             if not self.lua_default:
                 raise LuambException(
                     "specify Lua version with --lua/--luajit argument "
                     "or set default version via environment variable"
                 )
-
+            if self._is_local_path_or_git_uri(
+                    self.lua_default, skip_path_check=True):
+                raise LuambException(
+                    "Lua version environment variable doesn't support "
+                    "git URIs and local paths: '{}'\n"
+                    "use -l/-j argument instead".format(self.lua_default)
+                )
             try:
                 lua_type, lua_version = self._normalize_lua_version(
-                    self.lua_default)
+                    self.lua_default, self.TYPE_ALL)
             except LuambException as exc:
                 raise LuambException(
-                    "Error parsing default Lua version "
-                    "environment variable: {}".format(exc)
+                    "Error parsing default Lua version environment "
+                    "variable '{}': {}".format(self.lua_default, exc)
                 )
 
         if args.luarocks:
-            rocks_version = self._normalize_rocks_version(args.luarocks)
+            if self._is_local_path_or_git_uri(args.luarocks):
+                rocks_version = args.luarocks
+            else:
+                rocks_version = self._normalize_rocks_version(args.luarocks)
         elif not args.no_luarocks and self.luarocks_default:
             try:
-                rocks_version = self._normalize_rocks_version(
-                    self.luarocks_default)
+                if self._is_local_path_or_git_uri(self.luarocks_default):
+                    rocks_version = self.luarocks_default
+                else:
+                    rocks_version = self._normalize_rocks_version(
+                        self.luarocks_default)
             except LuambException as exc:
                 raise LuambException(
-                    "Error parsing default LuaRocks version "
-                    "environment variable: {}".format(exc)
+                    "Error parsing default LuaRocks version environment "
+                    "variable '{}': {}".format(self.luarocks_default, exc)
                 )
         else:
             rocks_version = None
@@ -393,11 +408,8 @@ in addition, you can specify a project path with -a/--associate argument
             return versions
         return separator.join(versions)
 
-    def _normalize_lua_version(self, version_string, lua_type=None):
+    def _normalize_lua_version(self, version_string, lua_type):
         version_string = version_string.lower()
-        if not lua_type:
-            lua_type = self.TYPE_ALL
-
         groupdict = self.re_lua.match(version_string).groupdict()
         prefix = bool(groupdict['prefix'])
         jit = bool(groupdict['jit'])
@@ -419,7 +431,7 @@ in addition, you can specify a project path with -a/--associate argument
         except KeyError:
             supported_versions = self._get_supported_versions(lua_type, '  ')
             raise LuambException(
-                "non-supported {} version: {}\n"
+                "unsupported {} version: {}\n"
                 "supported versions are: {}".format(
                     self.implementations[lua_type],
                     version,
@@ -437,12 +449,34 @@ in addition, you can specify a project path with -a/--associate argument
         except KeyError:
             supported_versions = self._get_supported_versions('rocks', '  ')
             raise LuambException(
-                "non-supported LuaRocks version: {}\n"
+                "unsupported LuaRocks version: {}\n"
                 "supported versions are: {}".format(
                     version,
                     supported_versions
                 )
             )
+
+    def _is_local_path_or_git_uri(self, version_string, skip_path_check=False):
+        if '@' in version_string:
+            return True
+        if (
+                not version_string.startswith('/')
+                and not version_string.startswith('./')
+                and not version_string.startswith('../')
+        ):
+            return False
+        if skip_path_check:
+            return True
+        if not os.path.exists(version_string):
+            raise LuambException(
+                "'{}' seems like local path "
+                "but doesn't exist".format(version_string)
+            )
+        if not os.path.isdir(version_string):
+            raise LuambException(
+                "'{}' is not a directory ".format(version_string)
+            )
+        return True
 
 
 if __name__ == '__main__':
