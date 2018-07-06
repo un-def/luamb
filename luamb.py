@@ -20,6 +20,7 @@ __version__ = '0.2.1'
 
 
 def error(msg, exit_status=1):
+    msg = '\033[0;31m{}\033[0m'.format(msg)
     print(msg)
     sys.exit(exit_status)
 
