@@ -57,7 +57,7 @@ class CMD(object):
                 cmd_str = '{0: <6}(aliases: {1})'.format(
                     cmd_str, ', '.join(cmd_info['aliases']))
             if cmd_info['desc']:
-                cmd_str = '{0: <30}{1}'.format(cmd_str, cmd_info['desc'])
+                cmd_str = '{0: <38}{1}'.format(cmd_str, cmd_info['desc'])
             help_list.append(cmd_str)
         return '\n'.join(help_list)
 
@@ -147,14 +147,14 @@ class Luamb(object):
         else:
             method(self, argv[1:])
 
-    @cmd.add('on', 'enable')
+    @cmd.add('on', 'enable', 'activate')
     def cmd_on(self, argv):
         """activate environment
         """
         print("usage: luamb on ENV_NAME\nthis command is implemented "
               "as shell function and can't be called via luamb.py")
 
-    @cmd.add('off', 'disable')
+    @cmd.add('off', 'disable', 'deactivate')
     def cmd_off(self, argv):
         """deactivate environment
         """
@@ -310,7 +310,7 @@ in addition, you can specify a project path with -a/--associate argument
             with open(os.path.join(env_path, '.project'), 'w') as f:
                 f.write(os.path.abspath(os.path.expandvars(args.associate)))
 
-    @cmd.add('rm', 'remove', 'del')
+    @cmd.add('rm', 'remove', 'del', 'delete')
     def cmd_rm(self, argv):
         """remove environment
         """

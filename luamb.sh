@@ -36,7 +36,7 @@ __luamb_wrap_deactivate_function() {
 __luamb_on() {
     # tricky way to prevent slashes in env name
     ENV_NAME=$(basename "$1")
-    ENV_PATH=$($READLINK -e "$LUAMB_DIR/$ENV_NAME")
+    ENV_PATH=$($__luamb_readlink -e "$LUAMB_DIR/$ENV_NAME")
     if [ ! -d "$ENV_PATH" ]; then
         echo "environment doesn't exist: $ENV_NAME"
         return 1
@@ -86,14 +86,14 @@ __luamb_cmd() {
 
 luamb() {
     case "$1" in
-        "on"|"enable")
+        on|enable|activate)
             if [ -z "$2" ]; then
                 echo "usage: luamb on ENV_NAME"
                 return 1
             fi
             __luamb_on "$2"
             ;;
-        "off"|"disable")
+        off|disable|deactivate)
             __luamb_off
             ;;
         *)
@@ -108,14 +108,14 @@ if [ -z "$LUAMB_DIR" ]; then
 fi
 
 if [ "$(uname)" = "Darwin" ]; then
-    READLINK="greadlink"
-    if ! __luamb_check_exists $READLINK; then
+    __luamb_readlink="greadlink"
+    if ! __luamb_check_exists $__luamb_readlink; then
         echo "luamb: greadlink not found, install coreutils:"
         echo "brew install coreutils"
         return 1
     fi
 else
-    READLINK="readlink"
+    __luamb_readlink="readlink"
 fi
 
 export LUAMB_ACTIVE_ENV=""
@@ -126,10 +126,14 @@ if [ "$LUAMB_COMPLETION" = "true" ]; then
     __luamb_completion() {
         case "$1" in
             luamb)
-                COMPLETION_OPTS="on enable off disable mk new create \
-                                 rm remove del info show ls list"
+                COMPLETION_OPTS="on enable activate \
+                                 off disable deactivate \
+                                 mk new create \
+                                 rm remove del delete \
+                                 info show \
+                                 ls list"
                 ;;
-            on|enable|rm|remove|del|info|show)
+            on|enable|activate|rm|remove|del|delete|info|show)
                 COMPLETION_OPTS=$(find "$LUAMB_DIR" -mindepth 1 -maxdepth 1 \
                                   -type d -printf "%f ")
                 ;;
