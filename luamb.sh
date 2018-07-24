@@ -1,5 +1,5 @@
 # author  : un.def <un.def@ya.ru>
-# version : 0.2.1
+# version : 0.3.0
 
 # shellcheck shell=bash
 

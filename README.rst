@@ -33,15 +33,11 @@ Installation
        # path to directory with environments
        export LUAMB_DIR=$HOME/.luambenvs
 
-   .. code:: shell
-
        # optional variables:
        export LUAMB_LUA_DEFAULT=lua5.3        # default Lua version
        export LUAMB_LUAROCKS_DEFAULT=latest   # default LuaRocks version
-       LUAMB_COMPLETION=true                  # enable Bash completion
+       LUAMB_COMPLETION=true                  # enable shell completion
        LUAMB_PYTHON_BIN=/usr/bin/python3      # explicitly set Python executable
-
-   .. code:: shell
 
        # make some magic
        source "$(which luamb.sh)"             # or absolute path like /usr/local/bin/luamb.sh
@@ -114,18 +110,27 @@ Commands
 
 Each command has one or more alias.
 
-``on`` \| ``enable`` — activate existing environment
+``on`` \| ``enable`` \| ``activate`` — activate environment
 
-``off`` \| ``disable`` — deactivate current environment
+``off`` \| ``disable`` \| ``deactivate`` — deactivate current environment
 
 ``mk`` \| ``new`` \| ``create`` — create new environment
 
-``rm`` \| ``remove`` \| ``del`` — delete existing environment
+``rm`` \| ``remove`` \| ``del`` \| ``delete`` — remove environment
+
+``info`` \| ``show`` — show environment info
 
 ``ls`` \| ``list`` — list all environments
 
 Version history
 ~~~~~~~~~~~~~~~
+
+-  0.3.0 (2018-07-24)
+
+   -  Add git URIs and local paths support
+   -  Add hererocks non-zero status handling
+   -  Wrap hererocks deactivate-lua function to deactivate environment properly
+   -  Add some new aliases
 
 -  0.2.1 (2018-03-25)
 
