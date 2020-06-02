@@ -34,13 +34,16 @@ Installation
        export LUAMB_DIR=$HOME/.luambenvs
 
        # optional variables:
-       export LUAMB_LUA_DEFAULT=lua5.3        # default Lua version
+       export LUAMB_LUA_DEFAULT='lua 5.3'     # default Lua version
        export LUAMB_LUAROCKS_DEFAULT=latest   # default LuaRocks version
        LUAMB_COMPLETION=true                  # enable shell completion
        LUAMB_PYTHON_BIN=/usr/bin/python3      # explicitly set Python executable
 
        # make some magic
-       source "$(which luamb.sh)"             # or absolute path like /usr/local/bin/luamb.sh
+       source <(luamb shellsrc)
+       # or if luamb executable is not in PATH:
+       source <("$LUAMB_PYTHON_BIN" -m luamb shellsrc)
+
 
 4. Try to execute in new shell:
 
@@ -69,7 +72,7 @@ Examples
 
    ::
 
-       $ export LUAMB_LUA_DEFAULT=luajit2.0
+       $ export LUAMB_LUA_DEFAULT='luajit 2.0'
        $ export LUAMB_LUAROCKS_DEFAULT=latest
 
 -  Create environment 'newenv' with default versions and without

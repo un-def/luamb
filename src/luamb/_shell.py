@@ -1,8 +1,14 @@
-# author  : un.def <un.def@ya.ru>
-# version : 0.3.0
-
 # shellcheck shell=bash
 
+# This file is both valid Shell script and Python module.
+#
+# It can be sourced in shell:
+# $ source _shell.py
+#
+# And it can be imported in Python:
+# $ python -c 'import _shell; print(_shell.shellsrc)'
+
+"""":
 
 __luamb_check_exists() {
     type "$@" > /dev/null 2>&1
@@ -73,13 +79,13 @@ __luamb_off() {
 
 
 __luamb_cmd() {
-    # set LUAMB_SCRIPT_PATH=/path/to/luamb.py in development mode
-    if [ -z "$LUAMB_SCRIPT_PATH" ]; then
-        CMD=("$LUAMB_PYTHON_BIN" -m luamb "$@")
+    local cmd
+    if [ -n "$LUAMB_PYTHON_BIN" ]; then
+        cmd=("$LUAMB_PYTHON_BIN" -m luamb "$@")
     else
-        CMD=("$LUAMB_PYTHON_BIN" "$LUAMB_SCRIPT_PATH" "$@")
+        cmd=(command luamb "$@")
     fi
-    "${CMD[@]}"
+    "${cmd[@]}"
     return $?
 }
 
@@ -119,8 +125,6 @@ else
 fi
 
 export LUAMB_ACTIVE_ENV=""
-# shellcheck disable=2230
-LUAMB_PYTHON_BIN=${LUAMB_PYTHON_BIN:-$(/usr/bin/which python)}
 
 if [ "$LUAMB_COMPLETION" = "true" ]; then
     __luamb_completion() {
@@ -165,3 +169,10 @@ if [ "$LUAMB_COMPLETION" = "true" ]; then
         compctl -K _luamb luamb
     fi
 fi
+
+return
+
+# """
+
+# shellcheck disable=SC1068,SC2034,SC2125
+shellsrc = __doc__[3:]

@@ -1,28 +1,21 @@
 # coding: utf-8
-from __future__ import unicode_literals, print_function
+from __future__ import print_function, unicode_literals
 
-import os
-import re
-import sys
-import shutil
 import argparse
 import contextlib
-from importlib import import_module
+import os
+import re
+import shutil
+import sys
 from collections import OrderedDict
+from importlib import import_module
+
+from luamb.version import __version__
+
 if sys.version_info[0] == 2:
     from StringIO import StringIO
 else:
     from io import StringIO
-
-
-__author__ = 'un.def <un.def@ya.ru>'
-__version__ = '0.4.0.dev0'
-
-
-def error(msg, exit_status=1):
-    msg = '\033[0;31m{}\033[0m'.format(msg)
-    print(msg)
-    sys.exit(exit_status)
 
 
 class CMD(object):
@@ -109,8 +102,8 @@ class Luamb(object):
                  hererocks=None):
         self.env_dir = env_dir
         self.active_env = active_env
-        self.lua_default = lua_default.strip()
-        self.luarocks_default = luarocks_default.strip()
+        self.lua_default = lua_default
+        self.luarocks_default = luarocks_default
         self.hererocks = hererocks or import_module('hererocks')
         self.supported_versions = {
             lua_type: self._fetch_supported_versions(cls_name)
@@ -248,7 +241,7 @@ in addition, you can specify a project path with -a/--associate argument
                 "Lua version argument is not specified, use the default value "
                 "from enviroment variable"
             )
-            lua_type, _, lua_version = self.lua_default.partition(' ')
+            lua_type, _, lua_version = self.lua_default.strip().partition(' ')
             lua_type = lua_type.rstrip()
             lua_version = lua_version.lstrip()
             if not lua_version:
@@ -268,7 +261,7 @@ in addition, you can specify a project path with -a/--associate argument
                 "LuaRocks version argument is not specified, "
                 "use the default value from enviroment variable"
             )
-            luarocks_version = self.luarocks_default
+            luarocks_version = self.luarocks_default.strip()
         else:
             raise LuambException(
                 "specify LuaRocks version argument "
@@ -468,36 +461,3 @@ in addition, you can specify a project path with -a/--associate argument
                 "'{}' is not a directory ".format(version_string)
             )
         return True
-
-
-if __name__ == '__main__':
-
-    try:
-        import hererocks
-    except ImportError:
-        error("'hererocks' is not installed")
-
-    luamb_dir = os.environ.get('LUAMB_DIR')
-    if not luamb_dir:
-        error("LUAMB_DIR variable is not set")
-
-    luamb_dir = os.path.expandvars(luamb_dir)
-    if not os.path.isdir(luamb_dir):
-        error("LUAMB_DIR='{}' is not a directory".format(luamb_dir))
-
-    luamb_lua_default = os.environ.get('LUAMB_LUA_DEFAULT')
-    luamb_luarocks_default = os.environ.get('LUAMB_LUAROCKS_DEFAULT')
-    luamb_active_env = os.environ.get('LUAMB_ACTIVE_ENV')
-
-    luamb = Luamb(
-        env_dir=luamb_dir,
-        active_env=luamb_active_env,
-        lua_default=luamb_lua_default,
-        luarocks_default=luamb_luarocks_default,
-        hererocks=hererocks,
-    )
-
-    try:
-        luamb.run()
-    except LuambException as exc:
-        error(exc)
