@@ -398,16 +398,17 @@ in addition, you can specify a project path with -a/--associate argument
                 print('Project:', f.read().strip())
 
     def _fetch_supported_versions(self, hererocks_cls_name):
-        cls = getattr(self.hererocks, hererocks_cls_name)
+        try:
+            cls = getattr(self.hererocks, hererocks_cls_name)
+        except AttributeError:
+            return {}
         versions = {v: v for v in cls.versions}
         versions.update(cls.translations)
         return versions
 
-    def _get_supported_versions(self, product_key, separator=None):
-        versions = list(sorted(self.supported_versions[product_key]))
-        if not separator:
-            return versions
-        return separator.join(versions)
+    def _format_supported_versions(self, product_key):
+        versions = sorted(self.supported_versions[product_key])
+        return '  '.join(versions)
 
     def _check_lua_version_is_supported(self, lua_type, lua_version):
         if not lua_type:
@@ -421,7 +422,7 @@ in addition, you can specify a project path with -a/--associate argument
         if self._is_local_path_or_git_uri(lua_version):
             return
         if lua_version not in self.supported_versions[lua_type]:
-            supported_versions = self._get_supported_versions(lua_type, '  ')
+            supported_versions = self._format_supported_versions(lua_type)
             raise LuambException(
                 "unsupported {} version: {}\n"
                 "supported versions are: {}".format(
@@ -437,7 +438,7 @@ in addition, you can specify a project path with -a/--associate argument
         if self._is_local_path_or_git_uri(version):
             return
         if version not in self.supported_versions['luarocks']:
-            supported_versions = self._get_supported_versions('luarocks', '  ')
+            supported_versions = self._format_supported_versions('luarocks')
             raise LuambException(
                 "unsupported LuaRocks version: {}\n"
                 "supported versions are: {}".format(
