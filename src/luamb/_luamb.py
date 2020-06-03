@@ -167,6 +167,17 @@ class Luamb(object):
         parser = argparse.ArgumentParser(
             prog='luamb mk',
             add_help=False,
+            description="""
+                This command is a tiny wrapper around hererocks tool.
+                You can use any hererocks arguments (see below), but instead of
+                a full path to new environment you should specify only
+                its name. In addition, you can specify a project path with
+                -a/--associate argument.
+            """,
+            usage=(
+                'luamb mk [-a PROJECT_DIR] [--no-luarocks] '
+                'HEREROCKS_ARGS ENV_NAME'
+            )
         )
         parser.add_argument(
             'env_name',
@@ -180,10 +191,14 @@ class Luamb(object):
             help="associate env with project",
         )
         for lua_type, lua_type_cli_args in self.lua_types_cli_args.items():
-            parser.add_argument(*lua_type_cli_args, dest=lua_type)
+            parser.add_argument(
+                *lua_type_cli_args,
+                dest=lua_type,
+                help=argparse.SUPPRESS
+            )
         parser.add_argument(
             '-r', '--luarocks',
-            help="version of LuaRocks",
+            help=argparse.SUPPRESS,
         )
         parser.add_argument(
             '--no-luarocks',
@@ -195,24 +210,20 @@ class Luamb(object):
             '-v', '--version',
             action='version',
             version=self.hererocks.hererocks_version,
-            help="show hererocks version number and exit",
+            help=argparse.SUPPRESS,
         )
         parser.add_argument(
             '-h', '--help',
             action='store_true',
+            help=argparse.SUPPRESS,
         )
         args, extra_args = parser.parse_known_args(argv)
 
         if not args.env_name or args.help:
             output = self._call_hererocks(['--help'], capture_output=True)
             hererocks_help = output.partition("optional arguments:\n")[2]
-            print("""usage: luamb mk [-a PROJECT_DIR] HEREROCKS_ARGS ENV_NAME
-
-this command is a tiny wrapper around hererocks tool
-you can use any hererocks arguments (see below), but instead of a full path
-to new environment you should specify only its name
-in addition, you can specify a project path with -a/--associate argument
-""")
+            parser.print_help()
+            print('\nhererocks arguments:')
             print(hererocks_help)
             return
 
