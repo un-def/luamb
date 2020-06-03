@@ -32,7 +32,7 @@ Lua environment manager built on top of [hererocks](https://github.com/luarocks/
       # optional variables:
       export LUAMB_LUA_DEFAULT='lua 5.3'     # default Lua version
       export LUAMB_LUAROCKS_DEFAULT=latest   # default LuaRocks version
-      LUAMB_COMPLETION=true                  # enable shell completion
+      LUAMB_DISABLE_COMPLETION=true          # disable shell completions
       LUAMB_PYTHON_BIN=/usr/bin/python3      # explicitly set Python executable
 
       # make some magic

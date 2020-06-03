@@ -126,7 +126,7 @@ fi
 
 export LUAMB_ACTIVE_ENV=""
 
-if [ "$LUAMB_COMPLETION" = "true" ]; then
+if [ "$LUAMB_DISABLE_COMPLETION" != "true" ]; then
     __luamb_completion() {
         case "$1" in
             luamb)
