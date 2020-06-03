@@ -334,11 +334,20 @@ in addition, you can specify a project path with -a/--associate argument
     def cmd_ls(self, argv):
         """list available environments
         """
+        parser = argparse.ArgumentParser(prog='luamb ls')
+        parser.add_argument(
+            '-s', '--short',
+            action='store_true',
+            help="show only names of environments",
+        )
+        args = parser.parse_args(argv)
         envs = next(os.walk(self.env_dir))[1]
         envs.sort()
+        detail = not args.short
         for env in envs:
-            self._show_env_info(env)
-            print('\n')
+            self._show_env_info(env, detail=detail)
+            if detail:
+                print('\n')
 
     @contextlib.contextmanager
     def _maybe_capture_output(self, capture_output):
@@ -376,13 +385,17 @@ in addition, you can specify a project path with -a/--associate argument
             raise LuambException("environment '{}' doesn't exist".format(
                                  env_name))
 
-    def _show_env_info(self, env_name, mark_active=True, raise_exc=True):
+    def _show_env_info(
+        self, env_name, detail=True, mark_active=True, raise_exc=True,
+    ):
         env_path = self._get_env_path(env_name, raise_exc=raise_exc)
         if not env_path:
             return
         if mark_active and env_name == self.active_env:
             env_name = '(' + env_name + ')'
         print(env_name)
+        if not detail:
+            return
         print('=' * len(env_name))
         self._call_hererocks(['--show', env_path])
         project_file_path = os.path.join(env_path, '.project')
