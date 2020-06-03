@@ -74,23 +74,28 @@ class HererocksErrorExit(LuambException):
 
 class Luamb(object):
 
-    lua_types = {
-        'lua': 'PUC-Rio Lua',
-        'luajit': 'LuaJIT',
-        'moonjit': 'moonjit',
-        'raptorjit': 'RaptorJIT',
-    }
-    lua_types_cli_args = {
+    lua_types = ('lua', 'luajit', 'moonjit', 'raptorjit')
+
+    product_cli_args = {
         'lua': ('-l', '--lua'),
         'luajit': ('-j', '--luajit'),
         'moonjit': ('-m', '--moonjit'),
         'raptorjit': ('--raptorjit',),
+        'luarocks': ('-r', '--luarocks'),
     }
-    lua_types_hererocks_classes = {
+    product_hererocks_classes = {
         'lua': 'RioLua',
         'luajit': 'LuaJIT',
         'moonjit': 'MoonJIT',
         'raptorjit': 'RaptorJIT',
+        'luarocks': 'LuaRocks',
+    }
+    product_names = {
+        'lua': 'PUC-Rio Lua',
+        'luajit': 'LuaJIT',
+        'moonjit': 'moonjit',
+        'raptorjit': 'RaptorJIT',
+        'luarocks': 'LuaRocks',
     }
 
     re_env_name = re.compile(r'^[^/\*?]+$')
@@ -106,11 +111,9 @@ class Luamb(object):
         self.luarocks_default = luarocks_default
         self.hererocks = hererocks or import_module('hererocks')
         self.supported_versions = {
-            lua_type: self._fetch_supported_versions(cls_name)
-            for lua_type, cls_name in self.lua_types_hererocks_classes.items()
+            product_key: self._fetch_supported_versions(cls_name)
+            for product_key, cls_name in self.product_hererocks_classes.items()
         }
-        self.supported_versions['luarocks'] = self._fetch_supported_versions(
-            'LuaRocks')
 
     def run(self, argv=None):
         if not argv:
@@ -175,9 +178,10 @@ class Luamb(object):
                 -a/--associate argument.
             """,
             usage=(
-                'luamb mk [-a PROJECT_DIR] [--no-luarocks] '
-                'HEREROCKS_ARGS ENV_NAME'
-            )
+                '\n  luamb mk [-a PROJECT_DIR] [--no-luarocks] HEREROCKS_ARGS '
+                'ENV_NAME\n'
+                '  luamb mk --list-versions WHAT'
+            ),
         )
         parser.add_argument(
             'env_name',
@@ -190,22 +194,27 @@ class Luamb(object):
             metavar='PROJECT_DIR',
             help="associate env with project",
         )
-        for lua_type, lua_type_cli_args in self.lua_types_cli_args.items():
-            parser.add_argument(
-                *lua_type_cli_args,
-                dest=lua_type,
-                help=argparse.SUPPRESS
-            )
-        parser.add_argument(
-            '-r', '--luarocks',
-            help=argparse.SUPPRESS,
-        )
         parser.add_argument(
             '--no-luarocks',
             action='store_true',
             help="don't install LuaRocks (if default version specified via "
                  "environment variable)",
         )
+        parser.add_argument(
+            '--list-versions',
+            choices=self.product_names,
+            metavar='WHAT',
+            help=(
+                'list versions of Lua interpreter or LuaRocks '
+                '(one of %(choices)s) available for installation'
+            ),
+        )
+        for product_key, product_cli_args in self.product_cli_args.items():
+            parser.add_argument(
+                *product_cli_args,
+                dest=product_key,
+                help=argparse.SUPPRESS
+            )
         parser.add_argument(
             '-v', '--version',
             action='version',
@@ -219,12 +228,22 @@ class Luamb(object):
         )
         args, extra_args = parser.parse_known_args(argv)
 
-        if not args.env_name or args.help:
+        if args.help or (not args.env_name and not args.list_versions):
             output = self._call_hererocks(['--help'], capture_output=True)
             hererocks_help = output.partition("optional arguments:\n")[2]
             parser.print_help()
             print('\nhererocks arguments:')
             print(hererocks_help)
+            return
+
+        if args.list_versions:
+            product_key = args.list_versions
+            print('supported {} versions are: {}'.format(
+                self.product_names[product_key],
+                self._format_supported_versions(product_key),
+            ))
+            print('latest and ^ are aliases for {}'.format(
+                self.supported_versions[product_key]['latest']))
             return
 
         env_name = args.env_name
@@ -255,13 +274,13 @@ class Luamb(object):
             lua_type, _, lua_version = self.lua_default.strip().partition(' ')
             lua_type = lua_type.rstrip()
             lua_version = lua_version.lstrip()
-            if not lua_version:
+            if not lua_type or not lua_version:
                 raise LuambException(
                     "Error parsing Lua version "
                     "environment variable: {}".format(self.lua_default)
                 )
 
-        self._check_lua_version_is_supported(lua_type, lua_version)
+        self._check_product_version_is_supported(lua_type, lua_version)
 
         if args.no_luarocks:
             luarocks_version = None
@@ -274,23 +293,23 @@ class Luamb(object):
             )
             luarocks_version = self.luarocks_default.strip()
         else:
-            raise LuambException(
-                "specify LuaRocks version argument "
-                "or set default version via environment variable "
-                "or pass --no-luarocks argument"
-            )
+            luarocks_version = None
 
         if luarocks_version is not None:
-            self._check_luarocks_version_is_supported(luarocks_version)
+            self._check_product_version_is_supported(
+                'luarocks', luarocks_version)
 
         env_path = os.path.join(self.env_dir, env_name)
 
         hererocks_args = [
-            self.lua_types_cli_args[lua_type][-1],
+            self.product_cli_args[lua_type][-1],
             lua_version,
         ]
         if luarocks_version:
-            hererocks_args.extend(['--luarocks', luarocks_version])
+            hererocks_args.extend([
+                self.product_cli_args['luarocks'][-1],
+                luarocks_version,
+            ])
         hererocks_args.extend(extra_args)
         hererocks_args.append(env_path)
 
@@ -427,38 +446,23 @@ class Luamb(object):
         versions = sorted(self.supported_versions[product_key])
         return '  '.join(versions)
 
-    def _check_lua_version_is_supported(self, lua_type, lua_version):
-        if not lua_type:
-            raise LuambException("Lua interpreter is not specified")
-        if not lua_version:
-            raise LuambException("Lua interpreter version is not specified")
-        if lua_type not in self.lua_types:
+    def _check_product_version_is_supported(self, product_key, version):
+        if product_key != 'luarocks' and product_key not in self.lua_types:
             raise LuambException(
-                "unsupported Lua interpreter {}".format(lua_type)
+                "unsupported Lua interpreter: {}".format(product_key)
             )
-        if self._is_local_path_or_git_uri(lua_version):
+        product_name = self.product_names[product_key]
+        if not version:
+            raise LuambException(
+                "{} version is not specified".format(product_name))
+        if self._is_local_path_or_git_uri(version):
             return
-        if lua_version not in self.supported_versions[lua_type]:
-            supported_versions = self._format_supported_versions(lua_type)
+        if version not in self.supported_versions[product_key]:
+            supported_versions = self._format_supported_versions(product_key)
             raise LuambException(
                 "unsupported {} version: {}\n"
                 "supported versions are: {}".format(
-                    self.lua_types[lua_type],
-                    lua_version,
-                    supported_versions
-                )
-            )
-
-    def _check_luarocks_version_is_supported(self, version):
-        if not version:
-            raise LuambException("LuaRocks version is not specified")
-        if self._is_local_path_or_git_uri(version):
-            return
-        if version not in self.supported_versions['luarocks']:
-            supported_versions = self._format_supported_versions('luarocks')
-            raise LuambException(
-                "unsupported LuaRocks version: {}\n"
-                "supported versions are: {}".format(
+                    product_name,
                     version,
                     supported_versions
                 )
