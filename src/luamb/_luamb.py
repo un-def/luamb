@@ -238,12 +238,12 @@ class Luamb(object):
 
         if args.list_versions:
             product_key = args.list_versions
-            print('supported {} versions are: {}'.format(
+            versions = self._get_supported_versions(product_key)
+            print('Supported {} versions are: {}'.format(
                 self.product_names[product_key],
-                self._format_supported_versions(product_key),
+                self._format_versions_string(versions),
             ))
-            print('latest and ^ are aliases for {}'.format(
-                self.supported_versions[product_key]['latest']))
+            print('latest and ^ are aliases for {}'.format(versions['latest']))
             return
 
         env_name = args.env_name
@@ -442,29 +442,37 @@ class Luamb(object):
         versions.update(cls.translations)
         return versions
 
-    def _format_supported_versions(self, product_key):
-        versions = sorted(self.supported_versions[product_key])
-        return '  '.join(versions)
+    def _get_supported_versions(self, product_key, raise_exc=True):
+        versions = self.supported_versions[product_key]
+        if versions or not raise_exc:
+            return versions
+        raise LuambException(
+            '{} is not supported\n'
+            'Try to upgrade hererocks'.format(self.product_names[product_key])
+        )
+
+    def _format_versions_string(self, versions):
+        return '  '.join(sorted(versions))
 
     def _check_product_version_is_supported(self, product_key, version):
         if product_key != 'luarocks' and product_key not in self.lua_types:
             raise LuambException(
-                "unsupported Lua interpreter: {}".format(product_key)
+                'Unsupported Lua interpreter: {}'.format(product_key)
             )
         product_name = self.product_names[product_key]
         if not version:
             raise LuambException(
-                "{} version is not specified".format(product_name))
+                '{} version is not specified'.format(product_name))
         if self._is_local_path_or_git_uri(version):
             return
-        if version not in self.supported_versions[product_key]:
-            supported_versions = self._format_supported_versions(product_key)
+        supported_versions = self._get_supported_versions(product_key)
+        if version not in supported_versions:
             raise LuambException(
-                "unsupported {} version: {}\n"
-                "supported versions are: {}".format(
+                'Unsupported {} version: {}\n'
+                'Supported versions are: {}'.format(
                     product_name,
                     version,
-                    supported_versions
+                    self._format_versions_string(supported_versions),
                 )
             )
 
