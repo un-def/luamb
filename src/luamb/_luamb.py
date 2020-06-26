@@ -57,10 +57,27 @@ class CMD(object):
 
 class LuambException(Exception):
 
-    pass
+    message = None
+
+    def __init__(self, message=None):
+        if message:
+            self.message = message
+
+    def __str__(self):
+        return self.message or self.__class__.__name__
+
+
+class CommandIsShellFunction(LuambException):
+
+    message = (
+        "this command is implemented as a shell function "
+        "and cannot be called via Python script entrypoint"
+    )
 
 
 class HererocksErrorExit(LuambException):
+
+    status = None
 
     def __init__(self, system_exit_exc):
         arg = system_exit_exc.args[0]
@@ -70,6 +87,29 @@ class HererocksErrorExit(LuambException):
         else:
             self.status = 1
             self.message = arg
+
+    def __str__(self):
+        msg = 'hererocks exited with non-zero status: {}'.format(self.status)
+        if self.message:
+            msg = '{}\n{}'.format(msg, self.message)
+        return msg
+
+
+class HererocksUncaughtException(LuambException):
+
+    exc = None
+
+    def __init__(self, exc):
+        self.exc = exc
+        if exc.args:
+            self.message = str(exc)
+
+    def __str__(self):
+        msg = 'uncaught exception while running hererocks: {}'.format(
+            self.exc.__class__.__name__)
+        if self.message:
+            msg = '{}\n{}'.format(msg, self.message)
+        return msg
 
 
 class Luamb(object):
@@ -151,22 +191,17 @@ class Luamb(object):
 
     @cmd.add('on', 'enable', 'activate')
     def cmd_on(self, argv):
-        """activate environment
-        """
-        print("usage: luamb on ENV_NAME\nthis command is implemented "
-              "as shell function and can't be called via luamb.py")
+        """activate environment"""
+        raise CommandIsShellFunction
 
     @cmd.add('off', 'disable', 'deactivate')
     def cmd_off(self, argv):
-        """deactivate environment
-        """
-        print("usage: luamb off\nthis command is implemented "
-              "as shell function and can't be called via luamb.py")
+        """deactivate environment"""
+        raise CommandIsShellFunction
 
     @cmd.add('mk', 'new', 'create')
     def cmd_mk(self, argv):
-        """create new environment
-        """
+        """create new environment"""
         parser = argparse.ArgumentParser(
             prog='luamb mk',
             add_help=False,
@@ -312,21 +347,7 @@ class Luamb(object):
             ])
         hererocks_args.extend(extra_args)
         hererocks_args.append(env_path)
-
-        try:
-            self._call_hererocks(hererocks_args)
-        except HererocksErrorExit as exc:
-            msg = "hererocks exited with non-zero status: {}".format(
-                exc.status)
-            if exc.message:
-                msg = "{}\n{}".format(msg, exc.message)
-            raise LuambException(msg)
-        except Exception as exc:
-            msg = "uncaught exception while running hererocks: {}".format(
-                exc.__class__.__name__)
-            if exc.args:
-                msg = "{}\n{}".format(msg, str(exc))
-            raise LuambException(msg)
+        self._call_hererocks(hererocks_args)
 
         if args.associate:
             with open(os.path.join(env_path, '.project'), 'w') as f:
@@ -334,8 +355,7 @@ class Luamb(object):
 
     @cmd.add('rm', 'remove', 'del', 'delete')
     def cmd_rm(self, argv):
-        """remove environment
-        """
+        """remove environment"""
         if not argv or len(argv) > 1 or '-h' in argv or '--help' in argv:
             print("usage: luamb rm ENV_NAME")
             return
@@ -349,8 +369,7 @@ class Luamb(object):
 
     @cmd.add('info', 'show')
     def cmd_info(self, argv):
-        """show environment info
-        """
+        """show environment info"""
         if '-h' in argv or '--help' in argv:
             print("usage: luamb info [ENV_NAME]")
             return
@@ -362,8 +381,7 @@ class Luamb(object):
 
     @cmd.add('ls', 'list')
     def cmd_ls(self, argv):
-        """list available environments
-        """
+        """list available environments"""
         parser = argparse.ArgumentParser(prog='luamb ls')
         parser.add_argument(
             '-s', '--short',
@@ -399,6 +417,8 @@ class Luamb(object):
             except SystemExit as exc:
                 if exc.code:
                     raise HererocksErrorExit(exc)
+            except Exception as exc:
+                raise HererocksUncaughtException(exc)
             if capture_output:
                 return output_buffer.getvalue()
 
