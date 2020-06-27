@@ -84,7 +84,7 @@ Lua environment manager built on top of [hererocks](https://github.com/luarocks/
   * Activate the 'newenv' environment:
 
     ```sh
-    $ luamb on newenv
+    luamb on newenv
     ```
 
   * Deactivate the current environment:
@@ -114,21 +114,59 @@ Each command has one or more aliases.
 
 ## Version history
 
-  * 0.3.0 (2018-07-24)
-    - Add git URIs and local paths support
-    - Add hererocks non-zero status handling
-    - Wrap hererocks deactivate-lua function to deactivate environment properly
-    - Add some new aliases
-  * 0.2.1 (2018-03-25)
-    - Bugfix release
-  * 0.2.0 (2017-08-29)
-    - Zsh support
-  * 0.1.2 (2016-08-24)
-    - OS X support (using `greadlink`)
-  * 0.1.1 (2016-07-23)
-    - Bash completion
-  * 0.1.0 (2016-07-20)
-    - Initial release
+### 0.4.0 (2020-06-27)
+
+#### BREAKING CHANGES
+
+  - Remove version parsing magic
+
+    `luamb mk` now accepts the same version specifiers as `hererocks`. `lua`/`luajit` prefixes are not allowed anymore, use a bare version specifier (e.g., `-l 5.1` instead of `-l lua5.1`).
+
+    A value of the `LUAMB_LUA_DEFAULT` environment variable must conform to the following format: `interpreter version_specifier` (e.g., `lua 5.3`, `luajit latest`, `moonjit 2.2`, `raptorjit repo@tag`, `lua /path/to`).
+
+    A value of the `LUAMB_LUAROCKS_DEFAULT` environment variable must contain only a version specifier (e.g., `3.3.0`, `2.1`, `latest`, `repo@tag`, `/path/to`), the `rocks`/`luarocks` prefix is not allowed anymore.
+
+  - Move shell code to a Python module
+
+    The code can now be retrieved with the `luamb shellsrc` command. Use `source <(luamb shellsrc)` to load the `luamb` function into the current shell.
+
+  - Enable shell completion by default
+
+    Set the `LUAMB_DISABLE_COMPLETION` environment variable to `true` to disable the completion.
+    The `LUAMB_COMPLETION` environment variable was removed.
+
+#### Added
+
+  - Add support for RaptorJIT and moonjit
+  - Add `--list-versions` flag to `mk` command
+  - Add `--short` flag to `ls` command
+
+### 0.3.0 (2018-07-24)
+
+  - Add git URIs and local paths support
+  - Add hererocks non-zero status handling
+  - Wrap hererocks deactivate-lua function to deactivate environment properly
+  - Add some new aliases
+
+### 0.2.1 (2018-03-25)
+
+Bugfix release
+
+### 0.2.0 (2017-08-29)
+
+Zsh support
+
+### 0.1.2 (2016-08-24)
+
+OS X support (using `greadlink`)
+
+### 0.1.1 (2016-07-23)
+
+Bash completion
+
+### 0.1.0 (2016-07-20)
+
+Initial release
 
 
 ## License
