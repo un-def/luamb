@@ -10,20 +10,43 @@
 
 """":
 
+# Dependencies
+#
+#   readlink (or greadlink)
+#   basename
+#   cat
+#   uname
+#   sed
+#   find (for completions)
+#
+# Exported variables
+#
+#   LUAMB_ACTIVE_ENV
+#       A name of the active environment or an empty string.
+#
+# Global variables
+#
+#   __luamb_readlink
+#       A name of the readlink binary ('readlink' or 'greadlink').
+#
+#   __luamb_orig_ps1
+#       The original value of the PS1 variable.
+#       Unset if no active environment.
+#
+# Functions (in addition to those explicitly declared at the top level)
+#
+#    __luamb_orig_deactivate
+#       The renamed original 'deactivate-lua'.
+#       Unset if no active environment.
+
+
 __luamb_check_exists() {
     type "$@" > /dev/null 2>&1
-    return $?
 }
 
 
 __luamb_is_active() {
     __luamb_check_exists deactivate-lua
-    return $?
-}
-
-
-__luamb_unset_deactivate_function() {
-    unset -f deactivate-lua >/dev/null 2>&1
 }
 
 
@@ -31,7 +54,6 @@ __luamb_wrap_deactivate_function() {
     local __luamb_orig_deactivate_code
     __luamb_orig_deactivate_code=$(typeset -f deactivate-lua | \
         sed 's/deactivate-lua/__luamb_orig_deactivate/g')
-    __luamb_unset_deactivate_function
     eval "$__luamb_orig_deactivate_code"
     deactivate-lua() {
         __luamb_off
@@ -40,37 +62,39 @@ __luamb_wrap_deactivate_function() {
 
 
 __luamb_on() {
+    local env_name
     # tricky way to prevent slashes in env name
-    ENV_NAME=$(basename "$1")
-    ENV_PATH=$($__luamb_readlink -e "$LUAMB_DIR/$ENV_NAME")
-    if [ ! -d "$ENV_PATH" ]; then
-        echo "environment doesn't exist: $ENV_NAME"
+    env_name=$(basename "$1")
+    local env_path
+    env_path=$($__luamb_readlink -e "$LUAMB_DIR/$env_name")
+    if [ ! -d "$env_path" ]; then
+        echo "environment doesn't exist: $env_name"
         return 1
     fi
     if __luamb_is_active; then
-        deactivate-lua
+        __luamb_off
     fi
-    LUAMB_ORIG_PS1=$PS1
-    PS1="($ENV_NAME) $LUAMB_ORIG_PS1"
-    LUAMB_ACTIVE_ENV=$ENV_NAME
-    __luamb_unset_deactivate_function
+    __luamb_orig_ps1=$PS1
+    PS1="($env_name) $__luamb_orig_ps1"
+    LUAMB_ACTIVE_ENV=$env_name
     # shellcheck disable=SC1090
-    source "$ENV_PATH/bin/activate"
+    source "$env_path/bin/activate"
     __luamb_wrap_deactivate_function
-    if [ -f "$ENV_PATH/.project" ]; then
+    if [ -f "$env_path/.project" ]; then
         # shellcheck disable=SC2164
-        cd "$(cat "$ENV_PATH/.project")"
+        cd "$(cat "$env_path/.project")"
     fi
-    echo "environment activated: $ENV_NAME"
+    echo "environment activated: $env_name"
 }
 
 
 __luamb_off() {
     if __luamb_is_active; then
         __luamb_orig_deactivate
-        __luamb_unset_deactivate_function
+        unset -f deactivate-lua
         echo "environment deactivated: $LUAMB_ACTIVE_ENV"
-        PS1=$LUAMB_ORIG_PS1
+        PS1=$__luamb_orig_ps1
+        unset __luamb_orig_ps1
         LUAMB_ACTIVE_ENV=""
     else
         echo "no active environment"
