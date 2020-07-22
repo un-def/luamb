@@ -112,7 +112,7 @@ class HererocksUncaughtException(LuambException):
 
 
 def check_env_name(env_name):
-    if env_name == '.' or env_name == '..' or '/' in env_name:
+    if not env_name or env_name == '.' or env_name == '..' or '/' in env_name:
         raise argparse.ArgumentTypeError(
             "invalid env name: '{}'".format(env_name))
     return env_name
