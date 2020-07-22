@@ -4,7 +4,6 @@ from __future__ import print_function, unicode_literals
 import argparse
 import contextlib
 import os
-import re
 import shutil
 import sys
 from collections import OrderedDict
@@ -112,6 +111,13 @@ class HererocksUncaughtException(LuambException):
         return msg
 
 
+def check_env_name(env_name):
+    if env_name == '.' or env_name == '..' or '/' in env_name:
+        raise argparse.ArgumentTypeError(
+            "invalid env name: '{}'".format(env_name))
+    return env_name
+
+
 class Luamb(object):
 
     lua_types = ('lua', 'luajit', 'moonjit', 'raptorjit')
@@ -137,8 +143,6 @@ class Luamb(object):
         'raptorjit': 'RaptorJIT',
         'luarocks': 'LuaRocks',
     }
-
-    re_env_name = re.compile(r'^[^/\*?]+$')
 
     cmd = CMD()
 
@@ -221,6 +225,7 @@ class Luamb(object):
         parser.add_argument(
             'env_name',
             nargs='?',
+            type=check_env_name,
             metavar='ENV_NAME',
             help="environment name (used as directory name)"
         )
@@ -282,8 +287,6 @@ class Luamb(object):
             return
 
         env_name = args.env_name
-        if not self.re_env_name.match(env_name):
-            raise LuambException("invalid env name: '{}'".format(env_name))
 
         args_lua_types = []
         for lua_type in self.lua_types:
@@ -356,10 +359,16 @@ class Luamb(object):
     @cmd.add('rm', 'remove', 'del', 'delete')
     def cmd_rm(self, argv):
         """remove environment"""
-        if not argv or len(argv) > 1 or '-h' in argv or '--help' in argv:
-            print("usage: luamb rm ENV_NAME")
-            return
-        env_name = argv[0]
+        parser = argparse.ArgumentParser(prog='luamb rm')
+        parser.add_argument(
+            'env_name',
+            type=check_env_name,
+            metavar='ENV_NAME',
+        )
+        args = parser.parse_args(argv)
+        env_name = args.env_name
+        if env_name == self.active_env:
+            raise LuambException('cannot remove the active environment')
         env_path = self._get_env_path(env_name)
         try:
             shutil.rmtree(env_path)
