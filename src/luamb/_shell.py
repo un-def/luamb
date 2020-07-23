@@ -13,7 +13,6 @@
 # Dependencies
 #
 #   readlink (or greadlink)
-#   basename
 #   cat
 #   uname
 #   sed
@@ -50,6 +49,14 @@ __luamb_is_active() {
 }
 
 
+__luamb_check_env_name() {
+    if [ "${1}" = '.' ] || [ "${1}" = '..' ] || [ -z "${1##*/*}" ]; then
+        echo "invalid env name: '${1}'"
+        return 1
+    fi
+}
+
+
 __luamb_wrap_deactivate_function() {
     local __luamb_orig_deactivate_code
     __luamb_orig_deactivate_code=$(typeset -f deactivate-lua | \
@@ -62,9 +69,8 @@ __luamb_wrap_deactivate_function() {
 
 
 __luamb_on() {
-    local env_name
-    # tricky way to prevent slashes in env name
-    env_name=$(basename "$1")
+    local env_name=$1
+    __luamb_check_env_name "$env_name" || return 1
     local env_path
     env_path=$($__luamb_readlink -e "$LUAMB_DIR/$env_name")
     if [ ! -d "$env_path" ]; then
