@@ -1,0 +1,19 @@
+name: Lint
+
+on:
+  - workflow_dispatch
+  - push
+  - pull_request
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install flake8
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install flake8
+      - name: Run flake8
+        run: |
+          python3 -m flake8

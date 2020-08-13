@@ -1,6 +1,7 @@
 .*
 !.gitignore
 !.editorconfig
+!.github/
 
 *.pyc
 
