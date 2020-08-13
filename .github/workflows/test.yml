@@ -21,6 +21,9 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Install shells
+        run: |
+          sudo apt install zsh
       - name: Install tox
         run: |
           python -m pip install --upgrade pip setuptools
